@@ -1,0 +1,45 @@
+# --- Secrets & credentials ---
+*.env
+.env.*
+*secret*.yaml
+*secrets*.yaml
+!*secret*.example.yaml
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+kubeconfig
+kubeconfig.yaml
+*.kubeconfig
+
+# --- Helm ---
+charts/*.tgz
+**/charts/*/charts/
+Chart.lock
+
+# --- Terraform (nel caso venga introdotto in futuro) ---
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+*.tfvars
+!*.tfvars.example
+
+# --- Kustomize build output ---
+kustomize-build/
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Editor / IDE ---
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- Logs / temp ---
+*.log
+tmp/
+*.tmp
