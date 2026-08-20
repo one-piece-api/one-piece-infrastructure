@@ -45,11 +45,46 @@ releases:
     # docs/adr/0002-helmfile-orchestration.md.
     timeout: 240
 
-  - name: whoami
-    namespace: auth
-    chart: ./helm/charts/whoami
+  # Namespace applicativo, separato da "auth": ospita i servizi di
+  # dominio (a partire da user-service/user-frontend), non l'identity
+  # provider — vedi docs/user-flows/application-user-identity-management.md
+  # nel repo one-piece-api.
+  - name: app-namespace
+    namespace: app
+    chart: ./helm/charts/namespace
+    values:
+      - name: app
+        component: application
+    timeout: 30
+
+  - name: app-postgresql
+    namespace: app
+    chart: ./helm/charts/postgresql
     needs:
-      - auth/namespace
+      - app/app-namespace
+    values:
+      - namespace: app
+        component: application
+        name: one-piece-app-postgresql
+        database: user_service
+        username: user_service
+        secretName: one-piece-app-postgresql-credentials
+        password: "user-service-db-change-me-locally"
+    timeout: 240
+
+  - name: user-service
+    namespace: app
+    chart: ./helm/charts/user-service
+    needs:
+      - app/app-namespace
+      - app/app-postgresql
+    timeout: 120
+
+  - name: user-frontend
+    namespace: app
+    chart: ./helm/charts/user-frontend
+    needs:
+      - app/app-namespace
     timeout: 60
 
   - name: keycloak
@@ -81,7 +116,8 @@ releases:
     needs:
       - auth/namespace
       - auth/keycloak
-      - auth/whoami
+      - app/user-service
+      - app/user-frontend
     values:
       - oauth2-proxy/values-oauth2-proxy.yaml
     timeout: 180

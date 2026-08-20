@@ -1,0 +1,9 @@
+apiVersion: v2
+name: user-service
+description: >
+  Backend applicativo (Spring Boot, repo one-piece-api/one-piece-user-service)
+  per la gestione dell'identità utente. Micro-chart locale, immagine
+  costruita e caricata nel cluster kind (nessun registry ancora), sotto
+  l'orchestrazione dichiarativa di Helmfile.
+type: application
+version: 0.1.0

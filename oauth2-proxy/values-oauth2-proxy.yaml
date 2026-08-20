@@ -11,9 +11,14 @@ config:
   existingSecret: one-piece-oauth2-proxy-credentials
   emailDomains:
     - "*"
-  # Upstream temporaneo: il servizio whoami usato per verificare il flow.
+  # Frontend come catch-all ("/"), backend sotto "/api/" — con --upstream
+  # il path della URI stessa è la route (instradata così com'è, non
+  # riscritta): il backend espone quindi i suoi endpoint sotto lo stesso
+  # prefisso (server.servlet.context-path=/api, vedi application.properties
+  # nel repo one-piece-user-service). Namespace "app".
   upstreams:
-    - "http://one-piece-whoami.auth.svc.cluster.local/"
+    - "http://one-piece-user-frontend.app.svc.cluster.local/"
+    - "http://one-piece-user-service.app.svc.cluster.local/api/"
 
 service:
   type: ClusterIP
@@ -50,3 +55,8 @@ extraArgs:
   pass-access-token: "true"
   set-xauthrequest: "true"
   http-address: "0.0.0.0:4180"
+  # Fase 0: nessun login implementato ancora lato backend (vedi Step 1 del
+  # piano di implementazione) — l'health check del backend resta l'unico
+  # percorso pubblico, per permettere ai probe/verifiche di Fase 0 di
+  # raggiungerlo senza autenticarsi. Tutto il resto resta dietro login.
+  skip-auth-route: "GET=^/api/actuator/health"

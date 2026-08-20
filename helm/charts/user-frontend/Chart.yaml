@@ -1,0 +1,9 @@
+apiVersion: v2
+name: user-frontend
+description: >
+  Frontend applicativo (Angular, repo one-piece-api/one-piece-user-frontend)
+  per la gestione dell'identità utente, servito da nginx. Micro-chart
+  locale, immagine costruita e caricata nel cluster kind (nessun registry
+  ancora), sotto l'orchestrazione dichiarativa di Helmfile.
+type: application
+version: 0.1.0

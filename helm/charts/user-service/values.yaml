@@ -1,0 +1,22 @@
+namespace: app
+component: user-service
+name: one-piece-user-service
+image: one-piece-user-service:local
+imagePullPolicy: IfNotPresent
+port: 8080
+
+datasource:
+  host: one-piece-app-postgresql.app.svc.cluster.local
+  port: 5432
+  database: user_service
+  username: user_service
+  secretName: one-piece-app-postgresql-credentials
+  secretKey: password
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

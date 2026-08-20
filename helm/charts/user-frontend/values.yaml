@@ -1,0 +1,14 @@
+namespace: app
+component: user-frontend
+name: one-piece-user-frontend
+image: one-piece-user-frontend:local
+imagePullPolicy: IfNotPresent
+port: 80
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
