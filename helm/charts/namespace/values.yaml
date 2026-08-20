@@ -1,0 +1,6 @@
+# Default values preserve the original hardcoded "auth" namespace exactly,
+# so the existing "auth" release needs no values override. New namespaces
+# (e.g. "app") are created by the same chart with values overridden in
+# helmfile.yaml, instead of duplicating this ~8-line manifest per namespace.
+name: auth
+component: identity-provider

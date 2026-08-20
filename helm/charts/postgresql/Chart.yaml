@@ -1,10 +1,12 @@
 apiVersion: v2
 name: postgresql
 description: >
-  PostgreSQL per Keycloak — immagine ufficiale (docker.io/library/postgres),
-  non un chart Helm reale: un'istanza singola locale non giustifica un
-  Operator o un chart dedicato (vedi docs/adr/0001-local-auth-stack.md).
-  Micro-chart locale che porta questo manifest raw sotto l'orchestrazione
-  dichiarativa di Helmfile (vedi docs/adr/0002-helmfile-orchestration.md).
+  PostgreSQL a istanza singola — immagine ufficiale
+  (docker.io/library/postgres), non un chart Helm reale: un'istanza locale
+  non giustifica un Operator o un chart dedicato (vedi
+  docs/adr/0001-local-auth-stack.md). Micro-chart locale parametrico
+  (namespace/database/credentials in values.yaml), riusato per ogni
+  istanza (Keycloak, applicativa, ...) sotto l'orchestrazione dichiarativa
+  di Helmfile (vedi docs/adr/0002-helmfile-orchestration.md).
 type: application
 version: 0.1.0

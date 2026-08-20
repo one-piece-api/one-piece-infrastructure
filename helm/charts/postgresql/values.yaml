@@ -1,0 +1,14 @@
+# Defaults preserve the original Keycloak-only manifest exactly, so the
+# existing "auth" postgresql release needs no values override. A second
+# instance (the application database) reuses this chart with overridden
+# values in helmfile.yaml, instead of duplicating this manifest.
+namespace: auth
+component: identity-provider
+name: one-piece-postgresql
+image: postgres:18.6
+database: keycloak
+username: keycloak
+secretName: one-piece-postgresql-credentials
+# Local-dev placeholder only — never a real credential. See ADR-0001.
+password: "keycloak-db-change-me-locally"
+storage: 2Gi
