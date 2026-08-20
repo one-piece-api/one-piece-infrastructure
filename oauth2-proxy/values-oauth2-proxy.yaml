@@ -57,9 +57,20 @@ extraArgs:
   code-challenge-method: "S256"
   cookie-secure: "false"
   cookie-samesite: "lax"
+  # pass-authorization-header è l'unica cosa che serve al backend: inoltra
+  # "Authorization: Bearer <jwt>" all'upstream (solo lato richiesta, mai
+  # riflesso nella risposta) perché user-service lo valida come resource
+  # server OAuth2 (vedi SecurityConfig nel repo one-piece-user-service).
   pass-authorization-header: "true"
-  pass-access-token: "true"
-  set-xauthrequest: "true"
+  # set-xauthrequest/pass-access-token sono deliberatamente OFF (il default):
+  # con set-xauthrequest attivo, oauth2-proxy ripete X-Auth-Request-User/
+  # -Email/-Access-Token anche come header della RISPOSTA al browser — cioè
+  # JWT in chiaro ed email dell'utente visibili in ogni richiesta dai
+  # DevTools, da un'estensione del browser o da un eventuale XSS, senza che
+  # nessun upstream li usi. pass-basic-auth (default true) è disattivato per
+  # lo stesso motivo lato upstream: né il frontend né il backend leggono
+  # X-Forwarded-User/-Email, quindi non c'è motivo di inoltrarli.
+  pass-basic-auth: "false"
   http-address: "0.0.0.0:4180"
   # L'health check del backend resta l'unico percorso pubblico (i probe
   # Kubernetes non possono autenticarsi). Tutto il resto, incluso /api/me
