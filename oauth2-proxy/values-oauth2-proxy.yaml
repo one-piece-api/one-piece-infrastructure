@@ -48,6 +48,12 @@ extraArgs:
   redeem-url: "http://keycloak-http.auth.svc.cluster.local:8080/realms/onepiece/protocol/openid-connect/token"
   oidc-jwks-url: "http://keycloak-http.auth.svc.cluster.local:8080/realms/onepiece/protocol/openid-connect/certs"
   redirect-url: "http://localhost:4180/oauth2/callback"
+  # Necessario perché "/oauth2/sign_out?rd=..." (Step 1: logout completo, vedi
+  # UF-IDU-08) reindirizza a Keycloak — un host diverso da quello del proxy —
+  # per terminare anche la sessione SSO lato identity provider. Senza questo
+  # whitelist, oauth2-proxy scarta un "rd" assoluto verso un altro host per
+  # prevenire un open redirect.
+  whitelist-domain: "localhost:8080"
   code-challenge-method: "S256"
   cookie-secure: "false"
   cookie-samesite: "lax"
@@ -55,8 +61,7 @@ extraArgs:
   pass-access-token: "true"
   set-xauthrequest: "true"
   http-address: "0.0.0.0:4180"
-  # Fase 0: nessun login implementato ancora lato backend (vedi Step 1 del
-  # piano di implementazione) — l'health check del backend resta l'unico
-  # percorso pubblico, per permettere ai probe/verifiche di Fase 0 di
-  # raggiungerlo senza autenticarsi. Tutto il resto resta dietro login.
+  # L'health check del backend resta l'unico percorso pubblico (i probe
+  # Kubernetes non possono autenticarsi). Tutto il resto, incluso /api/me
+  # (Step 1), resta dietro login.
   skip-auth-route: "GET=^/api/actuator/health"

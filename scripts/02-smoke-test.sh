@@ -4,7 +4,7 @@
 # proposito sul client "onepiece-proxy", vedi keycloak/realm-onepiece.json).
 #
 # Simula un browser con un cookie jar curl: redirect a Keycloak, login,
-# callback, sessione, accesso a whoami con gli header inoltrati.
+# callback, sessione, accesso autenticato a /api/me.
 
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/common.sh"
@@ -82,10 +82,9 @@ log "4/5 completo il callback (scambio del code, creazione sessione)..."
 curl -s -c "$COOKIES" -b "$COOKIES" -D "$WORKDIR/step4.h" "$callback_url" -o /dev/null
 grep -qi "^HTTP/.* 302" "$WORKDIR/step4.h" || { error "callback non ha restituito una sessione (vedi $WORKDIR/step4.h)"; exit 1; }
 
-log "5/5 accedo autenticato e verifico gli header inoltrati a whoami..."
-body="$(curl -s -c "$COOKIES" -b "$COOKIES" "$PROXY_URL/")"
-echo "$body" | grep -q "^Authorization: Bearer " || { error "header Authorization Bearer assente"; exit 1; }
-echo "$body" | grep -q "^X-Forwarded-Email: luffy@onepiece.local" || { error "header X-Forwarded-Email assente/errato"; exit 1; }
-echo "$body" | grep -q "^X-Forwarded-User: " || { error "header X-Forwarded-User assente"; exit 1; }
+log "5/5 verifico /api/me (Step 1: il backend risolve l'identità dal token)..."
+me="$(curl -s -c "$COOKIES" -b "$COOKIES" "$PROXY_URL/api/me")"
+echo "$me" | jq -e '.email == "luffy@onepiece.local" and (.roles | index("ADMIN") != null)' >/dev/null \
+  || { error "/api/me inatteso: $me"; exit 1; }
 
 log "smoke test superato: Authorization Code + PKCE end-to-end funzionante."
