@@ -1,0 +1,83 @@
+# Valori Helm per codecentric/keycloakx — ambiente locale (kind).
+# Chart community mantenuto attivamente, basato sull'immagine ufficiale
+# quay.io/keycloak/keycloak (nessun rebuild di terze parti).
+#
+# Sostituisce l'approccio originale (bitnami/keycloak con PostgreSQL come
+# subchart): le immagini docker.io/bitnami/* non sono più disponibili
+# gratuitamente (Broadcom le ha spostate dietro Bitnami Secure Images a
+# pagamento a metà 2025). PostgreSQL è quindi gestito separatamente in
+# postgresql/postgresql.yaml con l'immagine ufficiale postgres.
+
+fullnameOverride: keycloak
+
+commonLabels:
+  project: onepiece-api
+  component: identity-provider
+
+image:
+  repository: quay.io/keycloak/keycloak
+  tag: "26.6.4"
+
+# Import dichiarativo del realm all'avvio, dalla ConfigMap
+# `one-piece-realm-config` montata nella cartella scandita da Keycloak.
+# Hostname fisso: il browser raggiunge Keycloak solo via localhost:8080
+# (port-forward), quindi l'issuer nei token deve riflettere sempre
+# quell'host, indipendentemente dal Service DNS interno usato da
+# oauth2-proxy per parlare con Keycloak. Da Keycloak 26 l'opzione
+# "hostname" (v2) accetta un URL completo comprensivo di porta al posto
+# del vecchio "--hostname-port" (equivalenti dei classici
+# KC_HOSTNAME / KC_HOSTNAME_PORT / KC_HOSTNAME_STRICT).
+command:
+  - "/opt/keycloak/bin/kc.sh"
+  - "start"
+  - "--import-realm"
+  - "--hostname=http://localhost:8080"
+  - "--hostname-strict=false"
+
+extraEnv: |
+  - name: KC_BOOTSTRAP_ADMIN_USERNAME
+    value: admin
+  - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+    # Placeholder locale: NON usare in un ambiente reale.
+    value: "admin-change-me-locally"
+
+extraVolumes: |
+  - name: realm-config
+    configMap:
+      name: one-piece-realm-config
+
+extraVolumeMounts: |
+  - name: realm-config
+    mountPath: /opt/keycloak/data/import
+
+# Nessun reverse proxy davanti a Keycloak in questa fase (si accede solo via
+# kubectl port-forward): niente header X-Forwarded-* da fidarsi.
+proxy:
+  enabled: false
+  http:
+    enabled: true
+
+# Modalità development/locale: niente TLS.
+http:
+  relativePath: "/"
+
+service:
+  type: ClusterIP
+  httpPort: 8080
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1024Mi
+
+database:
+  vendor: postgres
+  hostname: one-piece-postgresql.auth.svc.cluster.local
+  port: 5432
+  database: keycloak
+  username: keycloak
+  existingSecret: one-piece-postgresql-credentials
+  existingSecretKey: password

@@ -1,0 +1,52 @@
+# Valori Helm per oauth2-proxy/oauth2-proxy — ambiente locale (kind).
+#
+# Le credenziali (client-id, client-secret, cookie-secret) NON sono definite
+# qui: sono lette da un Secret Kubernetes esterno referenziato tramite
+# `config.existingSecret`. Il manifest reale (con valori generati/placeholder)
+# vive in `oauth2-proxy/secret.local.yaml`, escluso da git dal pattern
+# `*secret*.yaml` in .gitignore. La versione tracciata è
+# `oauth2-proxy/secret.local.example.yaml`.
+
+config:
+  existingSecret: one-piece-oauth2-proxy-credentials
+  emailDomains:
+    - "*"
+  # Upstream temporaneo: il servizio whoami usato per verificare il flow.
+  upstreams:
+    - "http://one-piece-whoami.auth.svc.cluster.local/"
+
+service:
+  type: ClusterIP
+  portNumber: 4180
+
+httpScheme: http
+
+# Flag passati direttamente al binario oauth2-proxy.
+# ref: https://oauth2-proxy.github.io/oauth2-proxy/configuration/overview
+extraArgs:
+  provider: oidc
+  # Un solo provider configurato: reindirizza subito a Keycloak invece di
+  # mostrare una pagina intermedia "Sign in with...".
+  skip-provider-button: "true"
+  # skip-oidc-discovery: gli URL di discovery (auth/token/jwks) sono
+  # forniti esplicitamente sotto, perché browser e pod raggiungono
+  # Keycloak con hostname diversi (localhost:8080 vs DNS interno).
+  skip-oidc-discovery: "true"
+  # Issuer stabile: deve combaciare esattamente con l'issuer emesso da
+  # Keycloak (KC_HOSTNAME=localhost, KC_HOSTNAME_PORT=8080).
+  oidc-issuer-url: "http://localhost:8080/realms/onepiece"
+  # login-url: il browser ci viene reindirizzato direttamente, quindi deve
+  # essere raggiungibile dal browser (localhost, non il DNS interno).
+  login-url: "http://localhost:8080/realms/onepiece/protocol/openid-connect/auth"
+  # redeem-url e jwks-url: chiamate server-to-server da oauth2-proxy verso
+  # Keycloak, quindi usano il Service DNS interno al cluster.
+  redeem-url: "http://keycloak-http.auth.svc.cluster.local:8080/realms/onepiece/protocol/openid-connect/token"
+  oidc-jwks-url: "http://keycloak-http.auth.svc.cluster.local:8080/realms/onepiece/protocol/openid-connect/certs"
+  redirect-url: "http://localhost:4180/oauth2/callback"
+  code-challenge-method: "S256"
+  cookie-secure: "false"
+  cookie-samesite: "lax"
+  pass-authorization-header: "true"
+  pass-access-token: "true"
+  set-xauthrequest: "true"
+  http-address: "0.0.0.0:4180"
