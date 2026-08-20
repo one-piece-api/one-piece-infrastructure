@@ -1,0 +1,9 @@
+apiVersion: v2
+name: whoami
+description: >
+  Upstream temporaneo (traefik/whoami) usato da oauth2-proxy per verificare
+  quali header vengono inoltrati a valle. Micro-chart locale che porta
+  questo manifest raw sotto l'orchestrazione dichiarativa di Helmfile
+  (vedi docs/adr/0002-helmfile-orchestration.md).
+type: application
+version: 0.1.0

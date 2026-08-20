@@ -1,0 +1,93 @@
+# Orchestrazione dichiarativa dello stack di autenticazione locale (kind).
+#
+# Sostituisce gli ex script scripts/02-06: le dipendenze tra i componenti
+# sono esplicite (needs:) invece di essere codificate nell'ordine di uno
+# script bash, e l'attesa di readiness usa --wait nativo di Helm invece di
+# un wait_for_pod scritto a mano (che in questo stesso repo ha già causato
+# un timeout troppo stretto e una race condition — vedi
+# docs/adr/0002-helmfile-orchestration.md).
+#
+# Uso (dalla root del repository):
+#   helmfile sync     # applica tutto da zero o aggiorna: nessun plugin richiesto
+#   helmfile apply     # come sync, ma calcola prima un diff (richiede il
+#                       # plugin helm-diff: helm plugin install
+#                       # https://github.com/databus23/helm-diff)
+#   helmfile destroy   # rimuove tutte le release (il cluster kind va comunque
+#                       # eliminato a parte con scripts/teardown.sh)
+#   helmfile graph      # stampa il grafo delle dipendenze (needs:)
+
+repositories:
+  - name: codecentric
+    url: https://codecentric.github.io/helm-charts
+  - name: oauth2-proxy
+    url: https://oauth2-proxy.github.io/manifests
+
+helmDefaults:
+  wait: true
+  # Sempre innocuo (namespace "auth" già esistente dopo il primo sync): ma
+  # necessario al primo bootstrap, perché "helm install -n auth" fallisce
+  # con "namespace not found" se il namespace non esiste ancora — anche
+  # quando il chart stesso crea quel namespace (release "namespace" sotto).
+  createNamespace: true
+
+releases:
+  - name: namespace
+    namespace: auth
+    chart: ./helm/charts/namespace
+    timeout: 30
+
+  - name: postgresql
+    namespace: auth
+    chart: ./helm/charts/postgresql
+    needs:
+      - auth/namespace
+    # Cold-pull immagine (~170s su rete locale lenta) + readiness, vedi
+    # docs/adr/0002-helmfile-orchestration.md.
+    timeout: 240
+
+  - name: whoami
+    namespace: auth
+    chart: ./helm/charts/whoami
+    needs:
+      - auth/namespace
+    timeout: 60
+
+  - name: keycloak
+    namespace: auth
+    chart: codecentric/keycloakx
+    version: 7.2.3
+    needs:
+      - auth/namespace
+      - auth/postgresql
+    values:
+      - keycloak/values-keycloakx.yaml
+    # Cold-pull immagine ~250MB (~4min su rete locale lenta) + avvio
+    # (schema DB, import realm, ~60-90s in condizioni normali, ma osservato
+    # fino a superare 480s sotto carico di sistema sostenuto), vedi
+    # docs/adr/0002-helmfile-orchestration.md.
+    timeout: 600
+    hooks:
+      # La ConfigMap del realm deve esistere ed essere aggiornata prima che
+      # il chart venga sincronizzato, perché Keycloak la monta e la importa
+      # all'avvio (--import-realm).
+      - events: ["presync"]
+        command: "bash"
+        args: ["scripts/apply-realm-configmap.sh"]
+
+  - name: oauth2-proxy
+    namespace: auth
+    chart: oauth2-proxy/oauth2-proxy
+    version: 10.7.0
+    needs:
+      - auth/namespace
+      - auth/keycloak
+      - auth/whoami
+    values:
+      - oauth2-proxy/values-oauth2-proxy.yaml
+    timeout: 180
+    hooks:
+      # Il Secret con client-id/client-secret/cookie-secret deve esistere
+      # prima del sync: i values referenziano config.existingSecret.
+      - events: ["presync"]
+        command: "bash"
+        args: ["scripts/generate-oauth2-proxy-secret.sh"]

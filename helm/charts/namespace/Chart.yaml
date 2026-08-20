@@ -1,0 +1,9 @@
+apiVersion: v2
+name: namespace
+description: >
+  Namespace "auth" con le label di progetto. Micro-chart locale — nessun
+  parametro, esiste solo per portare questa singola risorsa sotto
+  l'orchestrazione dichiarativa di Helmfile (vedi helmfile.yaml,
+  docs/adr/0002-helmfile-orchestration.md).
+type: application
+version: 0.1.0
