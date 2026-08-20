@@ -39,6 +39,9 @@ Thumbs.db
 *.swp
 *.swo
 
+# --- Claude Code (impostazioni locali, non condivise) ---
+.claude/settings.local.json
+
 # --- Logs / temp ---
 *.log
 tmp/
