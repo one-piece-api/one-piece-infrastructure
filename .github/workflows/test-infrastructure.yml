@@ -1,0 +1,91 @@
+name: Test infrastructure
+
+# Verifica che le istruzioni committate in questo repo mettano davvero in
+# piedi lo stack (cluster kind + Postgres + Keycloak + whoami + oauth2-proxy)
+# nello stato atteso: non un job che reimplementa il deploy in YAML, ma uno
+# che invoca esattamente ./scripts/setup.sh, lo stesso comando che useresti
+# in locale. Se questo job passa, "seguire il README funziona" è un fatto
+# verificato ad ogni push, non solo un'affermazione.
+#
+# Il runner ubuntu-latest ha già Docker e jq/curl/openssl: installiamo solo
+# kind/kubectl/helm/helmfile, a versioni pinnate (stesse verificate
+# manualmente il 2026-08-20, vedi docs/adr/0002-helmfile-orchestration.md).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-infrastructure-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  KIND_VERSION: v0.32.0
+  KUBECTL_VERSION: v1.36.3
+  HELM_VERSION: v4.2.4
+  HELMFILE_VERSION: v1.7.4
+
+jobs:
+  test-infrastructure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installa kind/kubectl/helm/helmfile (versioni pinnate)
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+          curl -sL -o "$HOME/.local/bin/kind" \
+            "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64"
+          chmod +x "$HOME/.local/bin/kind"
+
+          curl -sL -o "$HOME/.local/bin/kubectl" \
+            "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+          chmod +x "$HOME/.local/bin/kubectl"
+
+          curl -sL "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" \
+            | tar -xz -C /tmp
+          mv /tmp/linux-amd64/helm "$HOME/.local/bin/helm"
+
+          curl -sL "https://github.com/helmfile/helmfile/releases/download/${HELMFILE_VERSION}/helmfile_${HELMFILE_VERSION#v}_linux_amd64.tar.gz" \
+            | tar -xz -C "$HOME/.local/bin" helmfile
+
+      - name: Setup completo da zero (cluster + stack via Helmfile + smoke test)
+        run: ./scripts/setup.sh
+
+      - name: Verifica idempotenza (helmfile sync una seconda volta)
+        run: helmfile sync
+        # Un secondo "helm upgrade --install" sulle stesse release, a parità
+        # di values, non deve fallire: cattura regressioni in cui un
+        # aggiornamento (non un install pulito) si comporta diversamente,
+        # lo scenario reale una volta che il repo avrà più storia.
+
+      - name: Diagnostica (solo se un passo precedente è fallito)
+        if: failure()
+        run: |
+          echo "::group::kubectl get pods -A"
+          kubectl get pods -A -o wide || true
+          echo "::endgroup::"
+
+          echo "::group::kubectl describe pods -n auth"
+          kubectl describe pods -n auth || true
+          echo "::endgroup::"
+
+          echo "::group::kubectl get events -n auth"
+          kubectl get events -n auth --sort-by=.lastTimestamp || true
+          echo "::endgroup::"
+
+          echo "::group::helm list -A"
+          helm list -A || true
+          echo "::endgroup::"
+
+          echo "::group::docker ps -a"
+          docker ps -a || true
+          echo "::endgroup::"
