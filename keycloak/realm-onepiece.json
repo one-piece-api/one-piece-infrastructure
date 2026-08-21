@@ -13,6 +13,18 @@
       { "name": "EDITOR", "description": "Content editing permissions" }
     ]
   },
+  "components": {
+    "org.keycloak.userprofile.UserProfileProvider": [
+      {
+        "providerId": "declarative-user-profile",
+        "config": {
+          "kc.user.profile.config": [
+            "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"userId\",\"displayName\":\"Application userId\",\"group\":\"user-metadata\",\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false}],\"groups\":[{\"name\":\"user-metadata\",\"displayHeader\":\"User metadata\",\"displayDescription\":\"Attributes, which refer to user metadata\"}]}"
+          ]
+        }
+      }
+    ]
+  },
   "clientScopes": [
     {
       "name": "profile",
@@ -75,6 +87,26 @@
           "config": {}
         }
       ]
+    },
+    {
+      "name": "application-user",
+      "protocol": "openid-connect",
+      "description": "Carries the application-generated userId (see one-piece-api/docs/user-flows/application-user-identity-management.md §2) so a token always resolves to exactly one application user record.",
+      "protocolMappers": [
+        {
+          "name": "userId",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "userId",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "userId",
+            "jsonType.label": "String"
+          }
+        }
+      ]
     }
   ],
   "clients": [
@@ -104,7 +136,8 @@
         "profile",
         "email",
         "roles",
-        "web-origins"
+        "web-origins",
+        "application-user"
       ]
     }
   ],
@@ -116,6 +149,9 @@
       "lastName": "Luffy",
       "emailVerified": true,
       "enabled": true,
+      "attributes": {
+        "userId": ["446fbe79-5cc4-458d-925d-9934334b6dcf"]
+      },
       "credentials": [
         {
           "type": "password",

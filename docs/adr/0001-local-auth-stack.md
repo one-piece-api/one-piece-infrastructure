@@ -91,6 +91,36 @@ default sul client — ma simula l'intero flow Authorization Code + PKCE via
 senza dover riabilitare a ogni run una grant type sconsigliata in
 produzione.
 
+### Attributi utente custom: User Profile dichiarativo esplicito
+
+Il modello di identità applicativa (vedi
+`one-piece-api/docs/user-flows/application-user-identity-management.md` §2)
+richiede che l'account Keycloak di ogni utente referenzi lo `userId`
+generato dall'applicazione, esposto come claim del token tramite un
+protocol mapper `oidc-usermodel-attribute-mapper` su un attributo utente
+Keycloak custom (`userId`).
+
+Da Keycloak 24 in poi, la gestione degli attributi utente è dichiarativa
+("User Profile"): un realm senza una configurazione esplicita usa uno
+schema built-in che include solo `username`/`email`/`firstName`/`lastName`
+e scarta silenziosamente qualunque attributo non dichiarato
+(`unmanagedAttributePolicy` non impostato) — un `userId` messo in
+`users[].attributes` nel realm JSON viene quindi importato senza errori ma
+non risulta mai leggibile né dall'Admin API né, di conseguenza, nel token.
+Il realm dichiara perciò esplicitamente il proprio User Profile
+(`components["org.keycloak.userprofile.UserProfileProvider"]`,
+`kc.user.profile.config`), replicando i 4 attributi built-in di default e
+aggiungendo `userId` come attributo gestito, sola lettura/scrittura per
+`admin` (mai per `user`, essendo generato dall'applicazione e immutabile).
+
+Alternativa scartata: abilitare `unmanagedAttributePolicy` (`ADMIN_EDIT`
+o `ENABLED`) invece di dichiarare lo schema per esteso — più corto da
+scrivere, ma rende *qualunque* attributo scritto da un chiamante con
+permessi sufficienti "gestito" implicitamente, senza validazione né
+visibilità esplicita nell'Admin Console; scartato per coerenza con la
+preferenza del progetto per configurazione dichiarativa ed esplicita
+piuttosto che comportamento implicito.
+
 ## Conseguenze
 
 - Nessuna dipendenza da immagini Bitnami: minor rischio di rotture future
