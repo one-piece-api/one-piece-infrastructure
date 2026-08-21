@@ -6,16 +6,23 @@
 # Le dipendenze tra i componenti dello stack sono dichiarate in
 # ../helmfile.yaml (needs:), non nell'ordine di questo script — vedi
 # docs/adr/0002-helmfile-orchestration.md.
+#
+# HELMFILE_ENVIRONMENT sceglie tra "default" (locale, immagini "kind load
+# docker-image") e "ci" (immagini da GHCR) — vedi environments: in
+# ../helmfile.yaml.gotmpl e docs/adr/0004-ci-images-from-ghcr.md. Non
+# impostata, vale "default": il comportamento locale resta invariato.
 
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 source lib/common.sh
 
+HELMFILE_ENVIRONMENT="${HELMFILE_ENVIRONMENT:-default}"
+
 ./00-check-prerequisites.sh
 ./01-create-cluster.sh
 
-log "sincronizzo lo stack (namespace, PostgreSQL, Keycloak, whoami, oauth2-proxy) via Helmfile..."
-(cd "$REPO_ROOT" && helmfile sync)
+log "sincronizzo lo stack (namespace, PostgreSQL, Keycloak, whoami, oauth2-proxy) via Helmfile [ambiente: $HELMFILE_ENVIRONMENT]..."
+(cd "$REPO_ROOT" && helmfile --environment "$HELMFILE_ENVIRONMENT" sync)
 
 ./02-smoke-test.sh
 

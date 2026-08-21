@@ -18,6 +18,10 @@ spec:
         project: onepiece-api
         component: {{ .Values.component }}
     spec:
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+      {{- end }}
       containers:
         - name: user-service
           image: {{ .Values.image }}

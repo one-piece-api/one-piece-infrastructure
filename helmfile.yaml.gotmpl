@@ -22,6 +22,35 @@ repositories:
   - name: oauth2-proxy
     url: https://oauth2-proxy.github.io/manifests
 
+# Due ambienti: "default" (sviluppo locale, invariato) e "ci" (CI di questo
+# repo, vedi .github/workflows/test-infrastructure.yml). In locale
+# user-service/user-frontend restano costruiti a mano e caricati con
+# "kind load docker-image" (ADR-0003): nessuna immagine di registry, nessun
+# pull secret. In "ci" puntano invece alle immagini pubblicate su GHCR dai
+# rispettivi repository applicativi, cosa che rende possibile un check
+# infrastrutturale end-to-end reale (stesse immagini che finirebbero in un
+# deploy vero), non solo lo scaffolding dei manifest — vedi ADR-0004.
+environments:
+  default:
+    values:
+      - userServiceImage: ""
+        userServiceImagePullPolicy: ""
+        userFrontendImage: ""
+        userFrontendImagePullPolicy: ""
+        imagePullSecrets: []
+  ci:
+    values:
+      - userServiceImage: ghcr.io/one-piece-api/user-service:latest
+        userServiceImagePullPolicy: Always
+        userFrontendImage: ghcr.io/one-piece-api/user-frontend:latest
+        userFrontendImagePullPolicy: Always
+        # I package GHCR sono privati di default: questo Secret (creato
+        # dall'hook presync di ciascuna release, script
+        # scripts/create-ghcr-pull-secret.sh) è necessario per il pull.
+        imagePullSecrets:
+          - name: ghcr-pull-secret
+
+---
 helmDefaults:
   wait: true
   # Sempre innocuo (namespace "auth" già esistente dopo il primo sync): ma
@@ -78,6 +107,15 @@ releases:
     needs:
       - app/app-namespace
       - app/app-postgresql
+    values:
+      - image: '{{ .Values.userServiceImage | default "one-piece-user-service:local" }}'
+        imagePullPolicy: '{{ .Values.userServiceImagePullPolicy | default "IfNotPresent" }}'
+        imagePullSecrets:
+          {{ .Values.imagePullSecrets | toYaml | nindent 10 }}
+    hooks:
+      - events: ["presync"]
+        command: "bash"
+        args: ["scripts/create-ghcr-pull-secret.sh"]
     timeout: 120
 
   - name: user-frontend
@@ -85,6 +123,15 @@ releases:
     chart: ./helm/charts/user-frontend
     needs:
       - app/app-namespace
+    values:
+      - image: '{{ .Values.userFrontendImage | default "one-piece-user-frontend:local" }}'
+        imagePullPolicy: '{{ .Values.userFrontendImagePullPolicy | default "IfNotPresent" }}'
+        imagePullSecrets:
+          {{ .Values.imagePullSecrets | toYaml | nindent 10 }}
+    hooks:
+      - events: ["presync"]
+        command: "bash"
+        args: ["scripts/create-ghcr-pull-secret.sh"]
     timeout: 60
 
   - name: keycloak

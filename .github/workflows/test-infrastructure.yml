@@ -29,6 +29,12 @@ env:
   KUBECTL_VERSION: v1.36.3
   HELM_VERSION: v4.2.4
   HELMFILE_VERSION: v1.7.4
+  # Usa le immagini pubblicate su GHCR (vedi environments: in
+  # helmfile.yaml.gotmpl e docs/adr/0004-ci-images-from-ghcr.md) invece di
+  # immagini "kind load docker-image" locali, che qui non esistono mai.
+  HELMFILE_ENVIRONMENT: ci
+  GHCR_PULL_USERNAME: ${{ secrets.GHCR_PULL_USERNAME }}
+  GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
 
 jobs:
   test-infrastructure:
@@ -61,7 +67,7 @@ jobs:
         run: ./scripts/setup.sh
 
       - name: Verifica idempotenza (helmfile sync una seconda volta)
-        run: helmfile sync
+        run: helmfile --environment "$HELMFILE_ENVIRONMENT" sync
         # Un secondo "helm upgrade --install" sulle stesse release, a parità
         # di values, non deve fallire: cattura regressioni in cui un
         # aggiornamento (non un install pulito) si comporta diversamente,
@@ -78,8 +84,16 @@ jobs:
           kubectl describe pods -n auth || true
           echo "::endgroup::"
 
+          echo "::group::kubectl describe pods -n app"
+          kubectl describe pods -n app || true
+          echo "::endgroup::"
+
           echo "::group::kubectl get events -n auth"
           kubectl get events -n auth --sort-by=.lastTimestamp || true
+          echo "::endgroup::"
+
+          echo "::group::kubectl get events -n app"
+          kubectl get events -n app --sort-by=.lastTimestamp || true
           echo "::endgroup::"
 
           echo "::group::helm list -A"

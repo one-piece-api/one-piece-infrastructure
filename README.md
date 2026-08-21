@@ -27,8 +27,9 @@ in `docs/adr/0001-local-auth-stack.md` e
 
 ```
 one-piece-infrastructure/
-├── helmfile.yaml             # Orchestrazione dello stack: dipendenze tra
-│                              # componenti (needs:), vedi ADR-0002
+├── helmfile.yaml.gotmpl      # Orchestrazione dello stack: dipendenze tra
+│                              # componenti (needs:), ambienti local/ci
+│                              # (vedi ADR-0002, ADR-0004)
 ├── scripts/                  # Setup/teardown dell'ambiente locale (vedi sotto)
 ├── kubernetes/                # Config cluster kind
 ├── keycloak/                  # values Helm, realm dichiarativo (unica source of truth)
@@ -58,8 +59,13 @@ architetturali. Per crearlo o distruggerlo:
 |---|---|
 | `scripts/00-check-prerequisites.sh` | verifica docker/kind/kubectl/helm/helmfile/jq/openssl/curl |
 | `scripts/01-create-cluster.sh` | crea il cluster kind `onepiece` (idempotente) |
-| `helmfile sync` (da `helmfile.yaml`) | applica namespace, PostgreSQL, Keycloak, whoami, oauth2-proxy nell'ordine dettato dalle loro dipendenze (`needs:`) |
+| `helmfile sync` (da `helmfile.yaml.gotmpl`) | applica namespace, PostgreSQL, Keycloak, whoami, oauth2-proxy nell'ordine dettato dalle loro dipendenze (`needs:`) |
 | `scripts/02-smoke-test.sh` | verifica l'intero flow Authorization Code + PKCE via curl |
+
+`HELMFILE_ENVIRONMENT` (env var, default `default`) sceglie l'origine delle
+immagini di `user-service`/`user-frontend`: `default` (locale, `kind load
+docker-image`) o `ci` (immagini da GHCR, usato dalla CI di questo repo) —
+vedi `docs/adr/0004-ci-images-from-ghcr.md`.
 
 Per iterare su un singolo componente senza rieseguire tutto:
 

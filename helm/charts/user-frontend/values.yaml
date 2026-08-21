@@ -3,6 +3,7 @@ component: user-frontend
 name: one-piece-user-frontend
 image: one-piece-user-frontend:local
 imagePullPolicy: IfNotPresent
+imagePullSecrets: []
 port: 80
 
 resources:

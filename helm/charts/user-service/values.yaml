@@ -3,6 +3,7 @@ component: user-service
 name: one-piece-user-service
 image: one-piece-user-service:local
 imagePullPolicy: IfNotPresent
+imagePullSecrets: []
 port: 8080
 
 datasource:
