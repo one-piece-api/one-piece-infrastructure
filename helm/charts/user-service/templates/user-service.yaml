@@ -45,8 +45,9 @@ spec:
             httpGet:
               path: /api/actuator/health/liveness
               port: http
-            initialDelaySeconds: 20
+            initialDelaySeconds: 45
             periodSeconds: 10
+            failureThreshold: 6
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
 ---
