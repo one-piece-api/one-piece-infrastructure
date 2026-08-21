@@ -63,9 +63,20 @@ architetturali. Per crearlo o distruggerlo:
 | `scripts/02-smoke-test.sh` | verifica l'intero flow Authorization Code + PKCE via curl |
 
 `HELMFILE_ENVIRONMENT` (env var, default `default`) sceglie l'origine delle
-immagini di `user-service`/`user-frontend`: `default` (locale, `kind load
-docker-image`) o `ci` (immagini da GHCR, usato dalla CI di questo repo) —
-vedi `docs/adr/0004-ci-images-from-ghcr.md`.
+immagini di `user-service`/`user-frontend`: `default` (locale) o `ci`
+(immagini da GHCR, usato dalla CI di questo repo) — vedi
+`docs/adr/0004-ci-images-from-ghcr.md`.
+
+Nell'ambiente `default`, un hook presync (`scripts/build-and-load-local-image.sh`,
+eseguito automaticamente da Helmfile prima di ciascuna delle due release)
+costruisce l'immagine `:local` se non esiste ancora nel Docker daemon locale
+(cercando i repository sibling `../one-piece-user-frontend`/
+`../one-piece-user-service`, presuppone quindi il layout multi-repo con le
+cartelle allo stesso livello di questa) e la carica sempre nel cluster kind
+con `kind load docker-image` — anche quando l'immagine non è cambiata, per
+restare resiliente a un cluster che l'ha persa (es. dopo un riavvio di
+Docker Desktop). Se i repository sibling non sono presenti, l'hook stampa un
+avviso e salta: il deploy fallirà se l'immagine non è già nel cluster.
 
 Per iterare su un singolo componente senza rieseguire tutto:
 

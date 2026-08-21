@@ -16,7 +16,7 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 source lib/common.sh
 
-HELMFILE_ENVIRONMENT="${HELMFILE_ENVIRONMENT:-default}"
+export HELMFILE_ENVIRONMENT="${HELMFILE_ENVIRONMENT:-default}"
 
 ./00-check-prerequisites.sh
 ./01-create-cluster.sh

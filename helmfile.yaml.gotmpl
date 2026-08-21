@@ -116,6 +116,12 @@ releases:
       - events: ["presync"]
         command: "bash"
         args: ["scripts/create-ghcr-pull-secret.sh"]
+      # Ambiente "default": builda e carica one-piece-user-service:local
+      # nel cluster kind (repo sibling one-piece-user-service). No-op in
+      # "ci" — vedi scripts/build-and-load-local-image.sh.
+      - events: ["presync"]
+        command: "bash"
+        args: ["scripts/build-and-load-local-image.sh", "one-piece-user-service"]
     timeout: 120
 
   - name: user-frontend
@@ -132,6 +138,12 @@ releases:
       - events: ["presync"]
         command: "bash"
         args: ["scripts/create-ghcr-pull-secret.sh"]
+      # Ambiente "default": builda e carica one-piece-user-frontend:local
+      # nel cluster kind (repo sibling one-piece-user-frontend). No-op in
+      # "ci" — vedi scripts/build-and-load-local-image.sh.
+      - events: ["presync"]
+        command: "bash"
+        args: ["scripts/build-and-load-local-image.sh", "one-piece-user-frontend"]
     timeout: 60
 
   - name: keycloak
