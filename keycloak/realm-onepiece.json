@@ -149,6 +149,72 @@
       "realmRoles": [
         "ADMIN"
       ]
+    },
+    {
+      "username": "nami",
+      "email": "nami@onepiece.local",
+      "firstName": "Nami",
+      "lastName": "Cat Burglar",
+      "emailVerified": true,
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "nami-change-me",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "EDITOR"
+      ]
+    },
+    {
+      "username": "zoro",
+      "email": "zoro@onepiece.local",
+      "firstName": "Roronoa",
+      "lastName": "Zoro",
+      "emailVerified": true,
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "zoro-change-me",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "REVIEWER"
+      ]
+    },
+    {
+      "username": "sanji",
+      "email": "sanji@onepiece.local",
+      "firstName": "Vinsmoke",
+      "lastName": "Sanji",
+      "emailVerified": true,
+      "enabled": false,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "sanji-change-me",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "EDITOR"
+      ]
+    },
+    {
+      "username": "usopp",
+      "email": "usopp@onepiece.local",
+      "firstName": "Usopp",
+      "lastName": "Sniper King",
+      "emailVerified": true,
+      "enabled": true,
+      "requiredActions": ["UPDATE_PASSWORD"],
+      "realmRoles": [
+        "EDITOR"
+      ]
     }
   ]
 }
