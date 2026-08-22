@@ -121,6 +121,35 @@ visibilità esplicita nell'Admin Console; scartato per coerenza con la
 preferenza del progetto per configurazione dichiarativa ed esplicita
 piuttosto che comportamento implicito.
 
+### Aggiornamento: attributo `userId` rimosso, si usa il `sub` standard
+
+La decisione sopra è superata. Con il refactor della lettura utenti in
+`user-service` (Step 3, UF-IDU-17), l'identità del chiamante non ha più
+bisogno di un identificatore generato dall'applicazione: sia la risoluzione
+dell'utente autenticato (`ApplicationUserJwtAuthenticationConverter`) sia
+l'admin listing (`AdminUserQueryService`) usano ora l'id nativo dell'account
+Keycloak — rispettivamente il claim standard `sub` del token OIDC e
+`UserRepresentation.getId()` dell'Admin REST API — invece dell'attributo
+custom `userId`.
+
+Di conseguenza, dal realm sono stati rimossi: l'attributo `userId` dal User
+Profile dichiarativo (essendo rimasti solo i 4 attributi built-in di
+default, l'intero override `components` non serve più — il realm torna
+allo schema built-in implicito di Keycloak), il client scope
+`application-user` con il relativo protocol mapper, e il riferimento ad
+esso in `defaultClientScopes` di `onepiece-proxy`. L'utente seed `luffy`
+fissa ora il proprio `id` Keycloak nativo
+(`446fbe79-5cc4-458d-925d-9934334b6dcf`, lo stesso valore già usato prima
+come attributo custom) invece di dichiararlo come attributo applicativo, per
+continuità con test/documentazione esistenti.
+
+Conseguenza per il modello di identità applicativo: `userId` (§2 di
+`application-user-identity-management.md`) non è più generato
+dall'applicazione prima della creazione dell'account Keycloak, ma coincide
+con l'id che Keycloak stesso assegna all'account al momento della
+creazione — quel documento va aggiornato di conseguenza (fuori dallo scope
+di questo ADR, che riguarda solo la configurazione del realm).
+
 ## Conseguenze
 
 - Nessuna dipendenza da immagini Bitnami: minor rischio di rotture future
