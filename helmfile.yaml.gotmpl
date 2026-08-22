@@ -122,6 +122,14 @@ releases:
       - events: ["presync"]
         command: "bash"
         args: ["scripts/build-and-load-local-image.sh", "one-piece-user-service"]
+      # Credenziali del client Keycloak "user-service-admin" (Admin API,
+      # Step 3 — listing utenti). Nessuna dipendenza da "needs" verso
+      # auth/keycloak: legge solo il file locale realm-onepiece.json, non
+      # chiama Keycloak — l'autenticazione vera avviene lazy, alla prima
+      # chiamata Admin API effettiva.
+      - events: ["presync"]
+        command: "bash"
+        args: ["scripts/create-user-service-admin-secret.sh"]
     timeout: 120
 
   - name: user-frontend

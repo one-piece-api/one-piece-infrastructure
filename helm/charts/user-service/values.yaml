@@ -6,13 +6,12 @@ imagePullPolicy: IfNotPresent
 imagePullSecrets: []
 port: 8080
 
-datasource:
-  host: one-piece-app-postgresql.app.svc.cluster.local
-  port: 5432
-  database: user_service
-  username: user_service
-  secretName: one-piece-app-postgresql-credentials
-  secretKey: password
+# Only the secret: server-url/realm/client-id are hardcoded in
+# application-dev.properties (one-piece-user-service) - identical for every
+# deployment of this chart, no need to plumb them through as values too.
+keycloakAdmin:
+  secretName: one-piece-user-service-admin-credentials
+  secretKey: client-secret
 
 resources:
   requests:

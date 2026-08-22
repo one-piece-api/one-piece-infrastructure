@@ -94,6 +94,8 @@ kubectl port-forward svc/oauth2-proxy  -n auth 4180:4180 &
 # poi apri http://localhost:4180
 ```
 
+Per eseguire `user-service` fuori dal cluster (es. da IntelliJ, per debugging — profilo Spring `local`, vedi `application-local.properties` nel repo `one-piece-user-service`), basta il port-forward di Keycloak sopra: il servizio non ha un proprio datasource, Keycloak è l'unico identity store (vedi §2 di `application-user-identity-management.md`).
+
 ## Convenzioni (da definire)
 
 - Gestione dei secret: TBD (es. Sealed Secrets / External Secrets Operator)
