@@ -31,10 +31,10 @@ spec:
               containerPort: {{ .Values.port }}
           env:
             # Selects application-dev.properties (see one-piece-user-service):
-            # cluster-internal DNS for Keycloak, the client secret injected
-            # below instead of hardcoded (user-service has no datasource of
-            # its own - Keycloak is the sole identity store, see §2 of
-            # application-user-identity-management.md).
+            # cluster-internal DNS for Keycloak and app-postgresql, both
+            # secrets injected below instead of hardcoded. Keycloak remains
+            # the sole identity store (§2 of application-user-identity-management.md);
+            # app-postgresql only backs the audit_log table (Step 4, §13).
             - name: SPRING_PROFILES_ACTIVE
               value: dev
             - name: KEYCLOAK_ADMIN_CLIENT_SECRET
@@ -42,6 +42,13 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.keycloakAdmin.secretName }}
                   key: {{ .Values.keycloakAdmin.secretKey }}
+            # The audit_log datasource (Step 4) - see docs/adr/0001-audit-log-persistence.md
+            # in one-piece-user-service.
+            - name: APP_POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appPostgresql.secretName }}
+                  key: {{ .Values.appPostgresql.secretKey }}
           readinessProbe:
             httpGet:
               path: /api/actuator/health/readiness
