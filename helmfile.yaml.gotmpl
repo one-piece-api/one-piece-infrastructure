@@ -74,6 +74,19 @@ releases:
     # docs/adr/0002-helmfile-orchestration.md.
     timeout: 240
 
+  # Cattura le email che Keycloak invia in locale (invito utente UF-IDU-01,
+  # verifica email, reset password) invece di inoltrarle davvero — il
+  # realm (sotto) vi punta di default. Nessun account/servizio esterno
+  # richiesto per sviluppare in locale; sovrascritto da un vero relay
+  # Resend solo se RESEND_API_KEY è impostata, vedi l'hook postsync della
+  # release "keycloak".
+  - name: mailpit
+    namespace: auth
+    chart: ./helm/charts/mailpit
+    needs:
+      - auth/namespace
+    timeout: 60
+
   # Namespace applicativo, separato da "auth": ospita i servizi di
   # dominio (a partire da user-service/user-frontend), non l'identity
   # provider — vedi docs/user-flows/application-user-identity-management.md
@@ -161,6 +174,7 @@ releases:
     needs:
       - auth/namespace
       - auth/postgresql
+      - auth/mailpit
     values:
       - keycloak/values-keycloakx.yaml
     # Cold-pull immagine ~250MB (~4min su rete locale lenta) + avvio
@@ -175,6 +189,14 @@ releases:
       - events: ["presync"]
         command: "bash"
         args: ["scripts/apply-realm-configmap.sh"]
+      # Il realm importato punta già a Mailpit di default (vedi
+      # keycloak/realm-onepiece.json): questo hook lo sovrascrive con il
+      # vero relay Resend via Admin API, solo se RESEND_API_KEY è impostata
+      # (skip silenzioso altrimenti) - a differenza dell'hook sopra, qui
+      # serve Keycloak già pronto.
+      - events: ["postsync"]
+        command: "bash"
+        args: ["scripts/configure-realm-smtp.sh"]
 
   - name: oauth2-proxy
     namespace: auth
