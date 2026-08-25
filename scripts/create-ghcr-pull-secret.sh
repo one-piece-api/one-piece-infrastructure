@@ -14,7 +14,7 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 # shellcheck disable=SC1091
-source lib/load-env-local.sh
+source scripts/lib/load-env-local.sh
 
 if [ -z "${GHCR_PULL_TOKEN:-}" ]; then
   echo "[create-ghcr-pull-secret] GHCR_PULL_TOKEN non impostata, salto (ambiente locale)."

@@ -20,7 +20,7 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 # shellcheck disable=SC1091
-source lib/load-env-local.sh
+source scripts/lib/load-env-local.sh
 
 if [ -z "${RESEND_API_KEY:-}" ]; then
   echo "[configure-realm-smtp] RESEND_API_KEY non impostata - obbligatoria in ogni ambiente" \
