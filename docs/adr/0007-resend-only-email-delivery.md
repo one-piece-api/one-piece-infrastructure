@@ -57,7 +57,12 @@ eliminando completamente il mail-catcher locale.
   ha bisogno di un proprio account Resend (piano gratuito: 100 email/giorno,
   3.000/mese, sufficiente per lo sviluppo). Questo è il costo diretto della
   semplificazione sopra: lo sviluppo locale del flow di invito non è più
-  possibile "a costo zero, senza account esterni".
+  possibile "a costo zero, senza account esterni". Per non richiedere un
+  `export` manuale ad ogni sessione di shell, viene letta da un file
+  `.env.local` locale (radice del repo, escluso da git) caricato
+  automaticamente da `scripts/lib/load-env-local.sh` - stesso principio di
+  `oauth2-proxy/secret.local.yaml` per l'altro segreto locale del repo, vedi
+  la sezione "Segreti locali" del README.
 - **Limite di importante rilievo pratico, accettato**: senza un dominio di
   invio verificato su Resend, l'account può inviare solo al proprio
   indirizzo email verificato - non a indirizzi arbitrari come quelli

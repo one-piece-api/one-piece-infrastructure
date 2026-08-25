@@ -48,7 +48,7 @@ Vedi `docs/adr/0001-local-auth-stack.md` e
 architetturali. Per crearlo o distruggerlo:
 
 ```bash
-export RESEND_API_KEY="..."  # obbligatoria - vedi "Ambiente locale" più sotto
+cp .env.local.example .env.local   # una tantum: valorizza RESEND_API_KEY
 ./scripts/setup.sh       # crea tutto da zero: cluster, stack via Helmfile,
                           # e uno smoke test end-to-end
 ./scripts/teardown.sh    # elimina il cluster kind (chiede conferma)
@@ -75,6 +75,19 @@ in ogni ambiente — nessun mail-catcher locale (`RESEND_API_KEY`, env var
 qualunque cosa; la credenziale viene impostata sul realm da
 `scripts/configure-realm-smtp.sh`, hook postsync della release "keycloak" —
 vedi `docs/adr/0007-resend-only-email-delivery.md`).
+
+### Segreti locali
+
+`.env.local` (radice del repo, escluso da git) raccoglie i segreti che gli
+script locali leggono da env var - copiare da `.env.local.example` una
+tantum e valorizzare; `scripts/lib/load-env-local.sh` lo carica
+automaticamente in ogni script che ne ha bisogno (compresi gli hook
+Helmfile invocati direttamente, es. `helmfile sync -l name=keycloak`), così
+non serve `export` manuale ad ogni sessione di shell. Stesso spirito di
+`oauth2-proxy/secret.local.yaml` per l'altro segreto locale di questo repo
+(quello, a differenza di questi, non richiede un account esterno: viene
+letto/generato da `realm-onepiece.json` e da un valore casuale, vedi
+`scripts/generate-oauth2-proxy-secret.sh`).
 
 Il realm ha `adminEventsEnabled: true` (dettagli disattivati,
 `adminEventsDetailsEnabled: false`; retention 7 giorni, `eventsExpiration:

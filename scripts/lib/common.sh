@@ -11,6 +11,9 @@ NAMESPACE="auth"
 # funzionano indipendentemente dalla directory da cui vengono lanciati.
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/load-env-local.sh"
+
 log()   { echo "[$(basename "$0")] $*"; }
 warn()  { echo "[$(basename "$0")] ATTENZIONE: $*" >&2; }
 error() { echo "[$(basename "$0")] ERRORE: $*" >&2; }
