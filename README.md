@@ -76,6 +76,13 @@ se impostata prima di `helmfile sync`, sovrascrive l'SMTP del realm con il
 vero relay Resend (`scripts/configure-realm-smtp.sh`, hook postsync della
 release "keycloak"); se assente, il realm resta su Mailpit.
 
+Il realm ha `adminEventsEnabled: true` (dettagli disattivati,
+`adminEventsDetailsEnabled: false`; retention 7 giorni, `eventsExpiration:
+604800`): `user-service` lo interroga (Step 5, UF-IDU-03) per sapere quando è
+stato inviato l'ultimo invito/resend a un utente, invece di tenerne traccia
+autonomamente — vedi `docs/adr/0004-invitation-expiry-gating.md` nel repo
+`one-piece-user-service`.
+
 Nell'ambiente `default`, un hook presync (`scripts/build-and-load-local-image.sh`,
 eseguito automaticamente da Helmfile prima di ciascuna delle due release)
 costruisce l'immagine `:local` se non esiste ancora nel Docker daemon locale
@@ -110,11 +117,18 @@ Per eseguire `user-service` fuori dal cluster (es. da IntelliJ, per debugging �
 kubectl port-forward svc/one-piece-app-postgresql -n app 5433:5432 &
 ```
 
+## Ambiente remoto (Oracle Cloud)
+
+Ambiente di sviluppo always-on su OKE (Oracle Kubernetes Engine), piano
+Always Free. Decisioni architetturali e motivazioni in
+`docs/adr/0005-remote-dev-environment-oracle-cloud.md`. Non ancora
+provisionato — l'ADR ne definisce l'architettura, il provisioning
+(Terraform + nuovo ambiente Helmfile `remote`) è un passo successivo.
+
 ## Convenzioni (da definire)
 
-- Gestione dei secret: TBD (es. Sealed Secrets / External Secrets Operator)
-- Ambienti: `dev`, `staging`, `production`
-- GitOps: TBD (es. ArgoCD / Flux)
+- Ambienti: `dev` (locale, `kind`), `remote` (Oracle Cloud, vedi sopra),
+  `production`: TBD
 
 ## Come contribuire
 

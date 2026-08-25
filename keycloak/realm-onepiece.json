@@ -6,6 +6,9 @@
   "ssoSessionIdleTimeout": 1800,
   "revokeRefreshToken": true,
   "refreshTokenMaxReuse": 0,
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": false,
+  "eventsExpiration": 604800,
   "smtpServer": {
     "host": "mailpit.auth.svc.cluster.local",
     "port": "1025",
@@ -120,7 +123,7 @@
     {
       "clientId": "user-service-admin",
       "name": "One Piece user-service Keycloak Admin API client",
-      "description": "Service-account-only: lets user-service manage user accounts via the Admin REST API - reads user/role data for the admin listing (UF-IDU-17, Step 3), and creates/provisions accounts for invitations (UF-IDU-01, Step 4), see the service-account user below.",
+      "description": "Service-account-only: lets user-service manage user accounts via the Admin REST API - reads user/role data for the admin listing (UF-IDU-17, Step 3), creates/provisions accounts for invitations (UF-IDU-01, Step 4), and reads admin-events to derive invitation expiry (UF-IDU-03, Step 5), see the service-account user below.",
       "protocol": "openid-connect",
       "publicClient": false,
       "clientAuthenticatorType": "client-secret",
@@ -138,7 +141,7 @@
       "enabled": true,
       "serviceAccountClientId": "user-service-admin",
       "clientRoles": {
-        "realm-management": ["view-realm", "view-users", "query-users", "manage-users"]
+        "realm-management": ["view-realm", "view-users", "query-users", "manage-users", "view-events"]
       }
     },
     {
