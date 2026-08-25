@@ -70,11 +70,16 @@ immagini di `user-service`/`user-frontend`: `default` (locale) o `ci`
 
 Le email di sistema (invito utente, verifica email, reset password —
 UF-IDU-01/04/12) a livello di realm Keycloak vanno al vero relay **Resend**
-in ogni ambiente — nessun mail-catcher locale (`RESEND_API_KEY`, env var
-**obbligatoria**, verificata da `00-check-prerequisites.sh` prima di creare
-qualunque cosa; la credenziale viene impostata sul realm da
-`scripts/configure-realm-smtp.sh`, hook postsync della release "keycloak" —
-vedi `docs/adr/0007-resend-only-email-delivery.md`).
+in `default`/`remote` — nessun mail-catcher locale (`RESEND_API_KEY`, env
+var **obbligatoria** in questi ambienti, verificata da
+`00-check-prerequisites.sh` prima di creare qualunque cosa; la credenziale
+viene impostata sul realm da `scripts/configure-realm-smtp.sh`, hook
+postsync della release "keycloak" — vedi
+`docs/adr/0007-resend-only-email-delivery.md`). In `ci` vanno invece a
+**Mailpit** (mock SMTP in-cluster, nessuna chiave richiesta): il sandbox
+Resend consegna solo al proprio indirizzo verificato, non agli indirizzi
+arbitrari `@onepiece.local` che seed e test e2e usano — vedi
+`docs/adr/0008-mock-smtp-in-ci.md`.
 
 ### Segreti locali
 

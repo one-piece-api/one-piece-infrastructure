@@ -1,0 +1,10 @@
+apiVersion: v2
+name: mailpit
+description: >
+  Server SMTP fittizio (axllent/mailpit) che cattura le email inviate da
+  Keycloak nell'ambiente "ci" (invito utente UF-IDU-01, verifica email,
+  reset password) invece di inoltrarle davvero — vedi
+  docs/adr/0008-mock-smtp-in-ci.md. Stateless, nessuna persistenza:
+  micro-chart locale, stesso pattern di helm/charts/postgresql.
+type: application
+version: 0.1.0

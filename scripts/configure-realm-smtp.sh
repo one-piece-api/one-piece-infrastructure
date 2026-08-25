@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Imposta la password SMTP (RESEND_API_KEY) del realm "onepiece" dopo
-# l'import - l'unico pezzo di keycloak/realm-onepiece.json che non può
-# essere committato in chiaro. Host/porta/mittente/auth puntano già al
-# relay Resend nel realm importato (nessun mail-catcher locale - vedi
-# docs/adr/0007-resend-only-email-delivery.md): questo script non li
-# tocca più, si limita alla credenziale.
+# Punta l'SMTP del realm "onepiece" dopo l'import: al vero relay Resend in
+# "default"/"remote" (ADR-0007), a Mailpit (mock, in-cluster) in "ci"
+# (ADR-0008) - senza un dominio verificato su Resend, l'account può
+# consegnare solo al proprio indirizzo verificato, non agli indirizzi
+# arbitrari @onepiece.local usati dai test e2e; la chiamata SMTP reale
+# restava appesa abbastanza da far scadere anche test non legati alle email.
 #
 # Keycloak gestisce da sé l'invio delle email di sistema (invito, verifica
 # email, reset password - UF-IDU-01/04/12, Step 4 in docs/implementation-plan.md
@@ -22,17 +22,33 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 # shellcheck disable=SC1091
 source scripts/lib/load-env-local.sh
 
-if [ -z "${RESEND_API_KEY:-}" ]; then
-  echo "[configure-realm-smtp] RESEND_API_KEY non impostata - obbligatoria in ogni ambiente" \
-    "da quando Mailpit è stato rimosso (docs/adr/0007-resend-only-email-delivery.md)." >&2
-  exit 1
-fi
-
 # Placeholder locale (KC_BOOTSTRAP_ADMIN_PASSWORD in keycloak/values-keycloakx.yaml),
 # non un segreto reale - stesso pattern di duplicazione già usato per le
 # credenziali placeholder altrove nel repo (es. keycloak.admin.client-secret
 # in application-local.properties di one-piece-user-service).
 kc_admin_password="admin-change-me-locally"
+
+if [ "${HELMFILE_ENVIRONMENT:-default}" = "ci" ]; then
+  kubectl exec -n auth statefulset/keycloak -- bash -c '
+    set -euo pipefail
+    /opt/keycloak/bin/kcadm.sh config credentials --server http://localhost:8080 --realm master --user admin --password "$1"
+    /opt/keycloak/bin/kcadm.sh update realms/onepiece \
+      -s smtpServer.host=mailpit.auth.svc.cluster.local \
+      -s smtpServer.port=1025 \
+      -s smtpServer.auth=false \
+      -s smtpServer.starttls=false \
+      -s smtpServer.ssl=false
+  ' bash "$kc_admin_password"
+
+  echo "[configure-realm-smtp] ci: realm 'onepiece' passato a Mailpit (mock SMTP)."
+  exit 0
+fi
+
+if [ -z "${RESEND_API_KEY:-}" ]; then
+  echo "[configure-realm-smtp] RESEND_API_KEY non impostata - obbligatoria in \"default\"/\"remote\"" \
+    "(vedi docs/adr/0007-resend-only-email-delivery.md)." >&2
+  exit 1
+fi
 
 # Passata come argomento posizionale allo script remoto, non interpolata
 # nella stringa di comando: evita che compaia nella process list del
