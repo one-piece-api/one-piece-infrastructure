@@ -37,6 +37,12 @@ spec:
             # app-postgresql only backs the audit_log table (Step 4, §13).
             - name: SPRING_PROFILES_ACTIVE
               value: dev
+            {{- if .Values.invitationTokenLifespan }}
+            # Short-lived override for the "ci" environment only (see values.yaml) - lets
+            # one-piece-e2e reach INVITATION_EXPIRED without waiting the default PT12H.
+            - name: KEYCLOAK_INVITATION_TOKEN_LIFESPAN
+              value: {{ .Values.invitationTokenLifespan | quote }}
+            {{- end }}
             - name: KEYCLOAK_ADMIN_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:

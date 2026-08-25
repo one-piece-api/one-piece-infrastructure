@@ -28,3 +28,10 @@ resources:
   limits:
     cpu: 500m
     memory: 512Mi
+
+# Overrides application.properties' keycloak.invitation.token-lifespan (PT12H) via the
+# KEYCLOAK_INVITATION_TOKEN_LIFESPAN env var - Spring's relaxed binding on
+# KeycloakInvitationProperties picks it up with no code change. Empty (default): keep the
+# application's own PT12H. Set by the "ci" Helmfile environment only (see helmfile.yaml.gotmpl)
+# to a short-lived value so one-piece-e2e can reach INVITATION_EXPIRED without waiting 12h.
+invitationTokenLifespan: ""

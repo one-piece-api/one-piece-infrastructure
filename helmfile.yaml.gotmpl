@@ -38,6 +38,7 @@ environments:
         userFrontendImage: ""
         userFrontendImagePullPolicy: ""
         imagePullSecrets: []
+        invitationTokenLifespan: ""
   ci:
     values:
       - userServiceImage: ghcr.io/one-piece-api/user-service:latest
@@ -49,6 +50,11 @@ environments:
         # scripts/create-ghcr-pull-secret.sh) è necessario per il pull.
         imagePullSecrets:
           - name: ghcr-pull-secret
+        # PT5S invece del PT12H di produzione (application.properties): solo
+        # questo ambiente lo consuma one-piece-e2e, che deve raggiungere
+        # INVITATION_EXPIRED (Step 5, UF-IDU-03) in un run di pochi minuti,
+        # non attendere 12h - vedi helm/charts/user-service/values.yaml.
+        invitationTokenLifespan: "PT5S"
 
 ---
 helmDefaults:
@@ -125,6 +131,7 @@ releases:
         imagePullPolicy: '{{ .Values.userServiceImagePullPolicy | default "IfNotPresent" }}'
         imagePullSecrets:
           {{ .Values.imagePullSecrets | toYaml | nindent 10 }}
+        invitationTokenLifespan: '{{ .Values.invitationTokenLifespan | default "" }}'
     hooks:
       - events: ["presync"]
         command: "bash"
