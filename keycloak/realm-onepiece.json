@@ -10,12 +10,13 @@
   "adminEventsDetailsEnabled": false,
   "eventsExpiration": 604800,
   "smtpServer": {
-    "host": "mailpit.auth.svc.cluster.local",
-    "port": "1025",
-    "from": "onboarding@onepiece.local",
+    "host": "smtp.resend.com",
+    "port": "587",
+    "from": "onboarding@resend.dev",
     "fromDisplayName": "One Piece API",
-    "auth": "false",
-    "starttls": "false",
+    "auth": "true",
+    "user": "resend",
+    "starttls": "true",
     "ssl": "false"
   },
   "roles": {

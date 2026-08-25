@@ -35,6 +35,9 @@ env:
   HELMFILE_ENVIRONMENT: ci
   GHCR_PULL_USERNAME: ${{ secrets.GHCR_PULL_USERNAME }}
   GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+  # Obbligatoria in ogni ambiente da quando Mailpit è stato rimosso - vedi
+  # docs/adr/0007-resend-only-email-delivery.md.
+  RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
 
 jobs:
   test-infrastructure:

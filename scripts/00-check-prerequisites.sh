@@ -20,4 +20,14 @@ if ! docker info >/dev/null 2>&1; then
   exit 1
 fi
 
+# Le email di sistema (invito utente, verifica email, reset password) vanno
+# al relay Resend in ogni ambiente - nessun mail-catcher locale di riserva,
+# vedi docs/adr/0007-resend-only-email-delivery.md. Controllato qui, non solo
+# nell'hook postsync di Helmfile, per fallire prima di spendere minuti su
+# cluster/provisioning se la chiave manca.
+if [ -z "${RESEND_API_KEY:-}" ]; then
+  error "RESEND_API_KEY non impostata: obbligatoria per configurare l'invio email di Keycloak (vedi README.md)."
+  exit 1
+fi
+
 log "tutti i prerequisiti sono soddisfatti."

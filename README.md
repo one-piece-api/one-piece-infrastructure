@@ -48,6 +48,7 @@ Vedi `docs/adr/0001-local-auth-stack.md` e
 architetturali. Per crearlo o distruggerlo:
 
 ```bash
+export RESEND_API_KEY="..."  # obbligatoria - vedi "Ambiente locale" più sotto
 ./scripts/setup.sh       # crea tutto da zero: cluster, stack via Helmfile,
                           # e uno smoke test end-to-end
 ./scripts/teardown.sh    # elimina il cluster kind (chiede conferma)
@@ -68,13 +69,12 @@ immagini di `user-service`/`user-frontend`: `default` (locale) o `ci`
 `docs/adr/0004-ci-images-from-ghcr.md`.
 
 Le email di sistema (invito utente, verifica email, reset password —
-UF-IDU-01/04/12) a livello di realm Keycloak vanno di default a **Mailpit**
-(release "mailpit", `helm/charts/mailpit`), un server SMTP fittizio che le
-cattura invece di inoltrarle davvero — nessun account/servizio esterno
-richiesto per sviluppare in locale. `RESEND_API_KEY` (env var, opzionale) —
-se impostata prima di `helmfile sync`, sovrascrive l'SMTP del realm con il
-vero relay Resend (`scripts/configure-realm-smtp.sh`, hook postsync della
-release "keycloak"); se assente, il realm resta su Mailpit.
+UF-IDU-01/04/12) a livello di realm Keycloak vanno al vero relay **Resend**
+in ogni ambiente — nessun mail-catcher locale (`RESEND_API_KEY`, env var
+**obbligatoria**, verificata da `00-check-prerequisites.sh` prima di creare
+qualunque cosa; la credenziale viene impostata sul realm da
+`scripts/configure-realm-smtp.sh`, hook postsync della release "keycloak" —
+vedi `docs/adr/0007-resend-only-email-delivery.md`).
 
 Il realm ha `adminEventsEnabled: true` (dettagli disattivati,
 `adminEventsDetailsEnabled: false`; retention 7 giorni, `eventsExpiration:
@@ -107,8 +107,8 @@ Accesso ai servizi (solo `kubectl port-forward`, mai esposizione diretta):
 ```bash
 kubectl port-forward svc/keycloak-http -n auth 8080:8080 &
 kubectl port-forward svc/oauth2-proxy  -n auth 4180:4180 &
-kubectl port-forward svc/mailpit       -n auth 8025:8025 &
-# poi apri http://localhost:4180 (app) o http://localhost:8025 (email catturate da Keycloak)
+# poi apri http://localhost:4180 (app) - le email inviate da Keycloak si
+# consultano nella dashboard Resend (resend.com/emails), non più in locale
 ```
 
 Per eseguire `user-service` fuori dal cluster (es. da IntelliJ, per debugging — profilo Spring `local`, vedi `application-local.properties` nel repo `one-piece-user-service`), oltre al port-forward di Keycloak sopra serve anche quello del suo datasource — il solo dato che il servizio persiste davvero, l'audit trail delle azioni admin (Step 4, §13 di `application-user-identity-management.md`; Keycloak resta l'unico identity store, vedi §2 dello stesso documento):
