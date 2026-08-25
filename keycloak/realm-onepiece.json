@@ -124,7 +124,7 @@
     {
       "clientId": "user-service-admin",
       "name": "One Piece user-service Keycloak Admin API client",
-      "description": "Service-account-only: lets user-service manage user accounts via the Admin REST API - reads user/role data for the admin listing (UF-IDU-17, Step 3), creates/provisions accounts for invitations (UF-IDU-01, Step 4), and reads admin-events to derive invitation expiry (UF-IDU-03, Step 5), see the service-account user below.",
+      "description": "Service-account-only: lets user-service manage accounts via the Admin REST API - user/role reads (UF-IDU-17, Step 3), invite provisioning (UF-IDU-01, Step 4), admin-events reads for invitation expiry (UF-IDU-03, Step 5); see service-account user below.",
       "protocol": "openid-connect",
       "publicClient": false,
       "clientAuthenticatorType": "client-secret",
