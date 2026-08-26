@@ -209,6 +209,12 @@ releases:
       - events: ["postsync"]
         command: "bash"
         args: ["scripts/configure-realm-smtp.sh"]
+      # Restringe il permesso di modifica di "email" al solo ADMIN sullo
+      # User Profile (vedi scripts/configure-user-profile.sh) - stesso
+      # motivo dell'hook sopra: non affidabile via import del realm.
+      - events: ["postsync"]
+        command: "bash"
+        args: ["scripts/configure-user-profile.sh"]
 
   - name: oauth2-proxy
     namespace: auth
