@@ -23,10 +23,49 @@
   },
   "roles": {
     "realm": [
-      { "name": "ADMIN", "description": "Full administrative access" },
-      { "name": "REVIEWER", "description": "Review and approval permissions" },
-      { "name": "EDITOR", "description": "Content editing permissions" }
-    ]
+      {
+        "name": "ADMIN",
+        "description": "Full administrative access",
+        "composite": true,
+        "composites": {
+          "client": {
+            "onepiece-proxy": ["users:read", "users:invite", "roles:write", "access:write", "audit:read"]
+          }
+        }
+      },
+      {
+        "name": "REVIEWER",
+        "description": "Review and approval permissions",
+        "composite": true,
+        "composites": {
+          "client": {
+            "onepiece-proxy": ["docs:read", "docs:review"]
+          }
+        }
+      },
+      {
+        "name": "EDITOR",
+        "description": "Content editing permissions",
+        "composite": true,
+        "composites": {
+          "client": {
+            "onepiece-proxy": ["docs:read", "docs:write"]
+          }
+        }
+      }
+    ],
+    "client": {
+      "onepiece-proxy": [
+        { "name": "users:read", "description": "List and view crew members" },
+        { "name": "users:invite", "description": "Invite a new crew member" },
+        { "name": "roles:write", "description": "Assign or revoke a crew member's roles" },
+        { "name": "access:write", "description": "Revoke or reactivate a crew member's access" },
+        { "name": "audit:read", "description": "Read the ship's log (audit trail)" },
+        { "name": "docs:read", "description": "View documents" },
+        { "name": "docs:review", "description": "Review documents" },
+        { "name": "docs:write", "description": "Edit documents" }
+      ]
+    }
   },
   "clientScopes": [
     {
@@ -86,6 +125,19 @@
             "access.token.claim": "true",
             "userinfo.token.claim": "true",
             "claim.name": "realm_access.roles",
+            "jsonType.label": "String",
+            "multivalued": "true"
+          }
+        },
+        {
+          "name": "client roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-client-role-mapper",
+          "config": {
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "claim.name": "resource_access.${client_id}.roles",
             "jsonType.label": "String",
             "multivalued": "true"
           }
