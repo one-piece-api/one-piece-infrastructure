@@ -1,0 +1,116 @@
+name: Deploy remote
+
+# Aggiorna l'ambiente "remote" (OKE su Oracle Cloud, ADR-0005) con
+# "helmfile --environment remote sync" - lo stesso comando lanciato a mano
+# in questa sessione di sviluppo, ora automatico. Innescato sia da push
+# diretti a questo repo, sia da one-piece-user-frontend/one-piece-user-service
+# dopo che pubblicano nuove immagini multi-arch su GHCR (repository_dispatch).
+#
+# Deliberatamente NON esegue "terraform apply": un cambiamento al node pool
+# Ampere A1 può competere per una capacità scarsissima e non garantita (vedi
+# la sessione di sviluppo che ha introdotto questo workflow) - accettabile
+# come azione umana consapevole dopo aver letto un plan, non come step
+# automatico e silenzioso di una pipeline. Le modifiche Terraform restano
+# manuali e locali.
+
+on:
+  push:
+    branches: [main]
+  repository_dispatch:
+    types: [deploy-remote]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-remote
+  # A differenza di test-infrastructure.yml (kind cluster usa-e-getta), qui
+  # i run si accodano invece di cancellarsi: interrompere un "helmfile sync"
+  # a metà contro il cluster reale lascerebbe uno stato incoerente.
+  cancel-in-progress: false
+
+env:
+  KUBECTL_VERSION: v1.36.3
+  HELM_VERSION: v4.2.4
+  HELMFILE_VERSION: v1.7.4
+  HELMFILE_ENVIRONMENT: remote
+  GHCR_PULL_USERNAME: ${{ secrets.GHCR_PULL_USERNAME }}
+  GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+  RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+  OCI_LB_SUBNET_ID: ${{ vars.OCI_LB_SUBNET_ID }}
+  OCI_LB_IP: ${{ vars.OCI_LB_IP }}
+
+jobs:
+  deploy-remote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Richieste dall'azione oracle-actions/run-oci-cli-command a livello
+      # di job (non di step), vedi la sua documentazione.
+      OCI_CLI_USER: ${{ secrets.OCI_CLI_USER }}
+      OCI_CLI_TENANCY: ${{ secrets.OCI_CLI_TENANCY }}
+      OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
+      OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_CLI_KEY_CONTENT }}
+      OCI_CLI_REGION: ${{ vars.OCI_CLI_REGION }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Installa kubectl/helm/helmfile (versioni pinnate)
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+          curl -sL -o "$HOME/.local/bin/kubectl" \
+            "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+          chmod +x "$HOME/.local/bin/kubectl"
+
+          curl -sL "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" \
+            | tar -xz -C /tmp
+          mv /tmp/linux-amd64/helm "$HOME/.local/bin/helm"
+
+          curl -sL "https://github.com/helmfile/helmfile/releases/download/${HELMFILE_VERSION}/helmfile_${HELMFILE_VERSION#v}_linux_amd64.tar.gz" \
+            | tar -xz -C "$HOME/.local/bin" helmfile
+
+      # Azione ufficiale Oracle: configura l'autenticazione OCI CLI dalle
+      # credenziali API (secret) ed esegue il comando indicato - qui, genera
+      # il kubeconfig del cluster invece di scrivere ~/.oci/config a mano.
+      - name: Genera il kubeconfig del cluster OKE
+        uses: oracle-actions/run-oci-cli-command@v1.3.2
+        with:
+          command: >-
+            ce cluster create-kubeconfig
+            --cluster-id ${{ vars.OCI_CLUSTER_ID }}
+            --file ${{ github.workspace }}/kubeconfig
+            --region ${{ vars.OCI_CLI_REGION }}
+            --token-version 2.0.0
+
+      - name: helmfile sync (ambiente remote)
+        env:
+          KUBECONFIG: ${{ github.workspace }}/kubeconfig
+        run: helmfile --environment remote sync
+
+      - name: Diagnostica (solo se un passo precedente è fallito)
+        if: failure()
+        env:
+          KUBECONFIG: ${{ github.workspace }}/kubeconfig
+        run: |
+          echo "::group::kubectl get pods -A"
+          kubectl get pods -A -o wide || true
+          echo "::endgroup::"
+
+          echo "::group::kubectl describe pods -n auth"
+          kubectl describe pods -n auth || true
+          echo "::endgroup::"
+
+          echo "::group::kubectl describe pods -n app"
+          kubectl describe pods -n app || true
+          echo "::endgroup::"
+
+          echo "::group::kubectl get events -A"
+          kubectl get events -A --sort-by=.lastTimestamp || true
+          echo "::endgroup::"
+
+          echo "::group::helm list -A"
+          helm list -A || true
+          echo "::endgroup::"
