@@ -93,6 +93,22 @@ jobs:
           KUBECONFIG: ${{ github.workspace }}/kubeconfig
         run: helmfile --environment remote sync
 
+      # user-frontend/user-service usano il tag mobile ":latest": un nuovo
+      # push su GHCR non cambia la stringa immagine nello spec del
+      # Deployment, quindi "helm upgrade" non vede alcuna differenza e non
+      # fa ripartire i pod, anche con imagePullPolicy: Always (Kubernetes
+      # ripulisce l'immagine solo quando il container si riavvia per un
+      # altro motivo, non proattivamente). Restart esplicito ad ogni sync,
+      # innocuo se l'immagine è già quella corrente.
+      - name: Riavvia i Deployment con tag mobile per forzare il pull
+        env:
+          KUBECONFIG: ${{ github.workspace }}/kubeconfig
+        run: |
+          kubectl rollout restart deployment/one-piece-user-frontend -n app
+          kubectl rollout restart deployment/one-piece-user-service -n app
+          kubectl rollout status deployment/one-piece-user-frontend -n app --timeout=180s
+          kubectl rollout status deployment/one-piece-user-service -n app --timeout=180s
+
       - name: Diagnostica (solo se un passo precedente è fallito)
         if: failure()
         env:
