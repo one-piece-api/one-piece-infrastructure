@@ -371,6 +371,15 @@ releases:
               # noto in anticipo, non a quello assegnato dinamicamente alla
               # creazione del LB. Valore: terraform output -raw lb_ip.
               oci.oraclecloud.com/reserved-ips: '{{ env "OCI_LB_IP" | default "" }}'
+              # Senza questo, il cloud-controller-manager OCI gestisce da sé
+              # la security list della subnet e aggiunge le sue regole
+              # aperte (0.0.0.0/0) per le porte del Service - annullando la
+              # restrizione al solo CIDR autorizzato che imponiamo via
+              # Terraform (network.tf). "None" lascia la security list
+              # interamente a noi. Osservato accadere di nuovo alla
+              # ricreazione del Service (es. per adottare un nuovo IP
+              # riservato) se questa annotazione non è già presente.
+              service.beta.kubernetes.io/oci-load-balancer-security-list-management-mode: "None"
           # Request più realistico per il nodo Ampere A1 da 1 OCPU/6GB
           # (ADR-0005): questa release è comunque usata solo in "remote",
           # dove il margine di CPU disponibile è stretto.
