@@ -79,12 +79,7 @@ jobs:
         uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
           silent: false
-          command: >-
-            ce cluster create-kubeconfig
-            --cluster-id ${{ vars.OCI_CLUSTER_ID }}
-            --file ${{ github.workspace }}/kubeconfig
-            --region ${{ vars.OCI_CLI_REGION }}
-            --token-version 2.0.0
+          command: 'ce cluster create-kubeconfig --cluster-id ${{ vars.OCI_CLUSTER_ID }} --file ${{ github.workspace }}/kubeconfig --token-version 2.0.0'
 
       - name: helmfile sync (ambiente remote)
         env:
