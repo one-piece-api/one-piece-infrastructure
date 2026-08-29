@@ -72,14 +72,21 @@ jobs:
           curl -sL "https://github.com/helmfile/helmfile/releases/download/${HELMFILE_VERSION}/helmfile_${HELMFILE_VERSION#v}_linux_amd64.tar.gz" \
             | tar -xz -C "$HOME/.local/bin" helmfile
 
-      # Azione ufficiale Oracle: configura l'autenticazione OCI CLI dalle
-      # credenziali API (secret) ed esegue il comando indicato - qui, genera
-      # il kubeconfig del cluster invece di scrivere ~/.oci/config a mano.
+      # oracle-actions/run-oci-cli-command (l'azione ufficiale Oracle) tokenizza
+      # male il comando con più flag con valore ("--file <path>" perde
+      # l'accoppiamento) - installiamo/eseguiamo oci CLI direttamente, stessa
+      # sostanza (autenticazione via le env var OCI_CLI_* a livello di job,
+      # native dell'SDK OCI - nessun ~/.oci/config da scrivere a mano),
+      # nessuna ambiguità di parsing.
+      - name: Installa OCI CLI
+        run: pip install --quiet oci-cli
+
       - name: Genera il kubeconfig del cluster OKE
-        uses: oracle-actions/run-oci-cli-command@v1.3.2
-        with:
-          silent: false
-          command: 'ce cluster create-kubeconfig --cluster-id ${{ vars.OCI_CLUSTER_ID }} --file ${{ github.workspace }}/kubeconfig --token-version 2.0.0'
+        run: |
+          oci ce cluster create-kubeconfig \
+            --cluster-id "${{ vars.OCI_CLUSTER_ID }}" \
+            --file "${{ github.workspace }}/kubeconfig" \
+            --token-version 2.0.0
 
       - name: helmfile sync (ambiente remote)
         env:
