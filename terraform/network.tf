@@ -131,4 +131,13 @@ resource "oci_core_public_ip" "lb" {
   compartment_id = oci_identity_compartment.onepiece.id
   display_name   = "onepiece-lb-ip"
   lifetime       = "RESERVED"
+
+  lifecycle {
+    # L'assegnazione alla private IP del Load Balancer è gestita da
+    # Kubernetes (annotazione oci.oraclecloud.com/reserved-ips sul Service
+    # ingress-nginx), non da qui: senza questo, un apply successivo alla
+    # prima associazione prova a scollegare l'IP dal LB, rompendo l'accesso
+    # pubblico.
+    ignore_changes = [private_ip_id]
+  }
 }
