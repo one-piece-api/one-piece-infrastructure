@@ -78,6 +78,7 @@ jobs:
       - name: Genera il kubeconfig del cluster OKE
         uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
+          silent: false
           command: >-
             ce cluster create-kubeconfig
             --cluster-id ${{ vars.OCI_CLUSTER_ID }}
