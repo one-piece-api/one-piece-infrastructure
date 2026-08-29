@@ -70,6 +70,14 @@ extraArgs:
   # whitelist, oauth2-proxy scarta un "rd" assoluto verso un altro host per
   # prevenire un open redirect.
   whitelist-domain: "localhost:8080"
+  # Senza questo, il default è "0" = il refresh dell'access token è
+  # disabilitato del tutto, anche con un refresh token valido disponibile
+  # (vedi oauth2-proxy.github.io/oauth2-proxy/configuration/overview) — ogni
+  # sessione arriva quindi a un access token scaduto lato backend dopo
+  # accessTokenLifespan (300s nel realm) e resta bloccata così finché non
+  # scade anche la sessione. Va impostato qualche secondo sotto
+  # accessTokenLifespan, non uguale, per rinnovare prima della scadenza.
+  cookie-refresh: "4m30s"
   code-challenge-method: "S256"
   cookie-secure: "false"
   cookie-samesite: "lax"
