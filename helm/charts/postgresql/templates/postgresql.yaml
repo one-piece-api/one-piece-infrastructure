@@ -80,12 +80,7 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 10
           resources:
-            requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              cpu: 500m
-              memory: 512Mi
+            {{- toYaml .Values.resources | nindent 12 }}
   volumeClaimTemplates:
     - metadata:
         name: data

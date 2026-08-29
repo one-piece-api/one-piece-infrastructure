@@ -1,0 +1,7 @@
+tenancy_ocid = "ocid1.tenancy.oc1..xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+region       = "eu-turin-1"
+
+# IP pubblico autorizzato a raggiungere il Load Balancer (porte 80/443).
+# Trovalo con `curl -s https://api.ipify.org` dalla stessa rete da cui
+# accederai all'ambiente remoto. Aggiornalo se il tuo IP cambia.
+allowed_client_cidr = "203.0.113.4/32"

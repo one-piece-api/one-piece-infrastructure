@@ -5,10 +5,21 @@
 namespace: auth
 component: identity-provider
 name: one-piece-postgresql
-image: postgres:18.6
+# Registry esplicito: CRI-O (runtime dei nodi OKE) rifiuta un nome immagine
+# non qualificato ("short name mode is enforcing") - containerd (kind) non
+# ha questa restrizione, da cui il funzionamento in locale/CI nonostante il
+# nome breve fosse sufficiente lì.
+image: docker.io/library/postgres:18.6
 database: keycloak
 username: keycloak
 secretName: one-piece-postgresql-credentials
 # Local-dev placeholder only — never a real credential. See ADR-0001.
 password: "keycloak-db-change-me-locally"
 storage: 2Gi
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

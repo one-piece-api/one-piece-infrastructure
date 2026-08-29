@@ -35,3 +35,11 @@ resources:
 # application's own PT12H. Set by the "ci" Helmfile environment only (see helmfile.yaml.gotmpl)
 # to a short-lived value so one-piece-e2e can reach INVITATION_EXPIRED without waiting 12h.
 invitationTokenLifespan: ""
+
+# Overrides application.properties' spring.security.oauth2.resourceserver.jwt.issuer-uri
+# (fisso su http://localhost:8080/realms/onepiece) via l'env var Spring
+# standard - il claim "iss" nei token riflette l'hostname configurato su
+# Keycloak stesso (vedi ADR-0001/0005), quindi in "remote" deve essere l'IP
+# pubblico riservato, non "localhost". Vuoto (default): resta il valore
+# nella properties, invariato per locale/CI.
+jwtIssuerUri: ""

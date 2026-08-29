@@ -1,0 +1,11 @@
+apiVersion: v2
+name: ingress
+description: >
+  Ingress "host-less" (nessun dominio, routing per path — ADR-0005) verso il
+  Service di oauth2-proxy, che internamente instrada già frontend/backend
+  (config.upstreams in oauth2-proxy/values-oauth2-proxy.yaml). Micro-chart
+  a parte invece del supporto ingress nativo del chart oauth2-proxy: quel
+  supporto itera su `ingress.hosts`, che con nessun dominio resta vuoto e
+  non genera alcuna regola.
+type: application
+version: 0.1.0

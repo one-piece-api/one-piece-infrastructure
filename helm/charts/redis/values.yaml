@@ -5,7 +5,17 @@
 namespace: auth
 component: identity-provider
 name: one-piece-redis
-image: redis:8.10.1-alpine
+# Registry esplicito: CRI-O (runtime dei nodi OKE) rifiuta un nome immagine
+# non qualificato ("short name mode is enforcing") - vedi
+# helm/charts/postgresql/values.yaml per lo stesso motivo.
+image: docker.io/library/redis:8.10.1-alpine
 secretName: one-piece-redis-credentials
 # Local-dev placeholder only — never a real credential. See ADR-0001.
 password: "redis-change-me-locally"
+resources:
+  requests:
+    cpu: 50m
+    memory: 32Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi

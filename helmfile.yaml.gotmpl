@@ -21,6 +21,8 @@ repositories:
     url: https://codecentric.github.io/helm-charts
   - name: oauth2-proxy
     url: https://oauth2-proxy.github.io/manifests
+  - name: ingress-nginx
+    url: https://kubernetes.github.io/ingress-nginx
 
 # Due ambienti: "default" (sviluppo locale, invariato) e "ci" (CI di questo
 # repo, vedi .github/workflows/test-infrastructure.yml). In locale
@@ -55,6 +57,19 @@ environments:
         # INVITATION_EXPIRED (Step 5, UF-IDU-03) in un run di pochi minuti,
         # non attendere 12h - vedi helm/charts/user-service/values.yaml.
         invitationTokenLifespan: "PT5S"
+  remote:
+    values:
+      # Stessa origine immagini di "ci" (GHCR, ADR-0004): l'ambiente remoto
+      # non ha un meccanismo di "kind load docker-image" - vedi ADR-0005.
+      # invitationTokenLifespan invariata (default applicativo, non il
+      # PT5S usato solo per i test e2e in ci).
+      - userServiceImage: ghcr.io/one-piece-api/user-service:latest
+        userServiceImagePullPolicy: Always
+        userFrontendImage: ghcr.io/one-piece-api/user-frontend:latest
+        userFrontendImagePullPolicy: Always
+        imagePullSecrets:
+          - name: ghcr-pull-secret
+        invitationTokenLifespan: ""
 
 ---
 helmDefaults:
@@ -76,6 +91,14 @@ releases:
     chart: ./helm/charts/postgresql
     needs:
       - auth/namespace
+{{ if eq .Environment.Name "remote" }}
+    values:
+      # Nodo Ampere A1 da 1 OCPU/6GB (ADR-0005): request più realistico per
+      # un DB dev a singolo utente, per lasciare margine a Keycloak.
+      - resources:
+          requests:
+            cpu: 50m
+{{ end }}
     # Cold-pull immagine (~170s su rete locale lenta) + readiness, vedi
     # docs/adr/0002-helmfile-orchestration.md.
     timeout: 240
@@ -120,6 +143,13 @@ releases:
         username: user_service
         secretName: one-piece-app-postgresql-credentials
         password: "user-service-db-change-me-locally"
+{{ if eq .Environment.Name "remote" }}
+      # Nodo Ampere A1 da 1 OCPU/6GB (ADR-0005): request più realistico per
+      # un DB dev a singolo utente, per lasciare margine a Keycloak.
+      - resources:
+          requests:
+            cpu: 50m
+{{ end }}
     timeout: 240
 
   - name: user-service
@@ -134,6 +164,12 @@ releases:
         imagePullSecrets:
           {{ .Values.imagePullSecrets | toYaml | nindent 10 }}
         invitationTokenLifespan: '{{ .Values.invitationTokenLifespan | default "" }}'
+{{ if eq .Environment.Name "remote" }}
+        # Il claim "iss" nei token riflette l'hostname pubblico di Keycloak
+        # (IP riservato, network.tf), non più "localhost" - vedi
+        # helm/charts/user-service/values.yaml.
+        jwtIssuerUri: 'http://{{ env "OCI_LB_IP" | default "localhost:8080" }}/realms/onepiece'
+{{ end }}
     hooks:
       - events: ["presync"]
         command: "bash"
@@ -164,6 +200,13 @@ releases:
         imagePullPolicy: '{{ .Values.userFrontendImagePullPolicy | default "IfNotPresent" }}'
         imagePullSecrets:
           {{ .Values.imagePullSecrets | toYaml | nindent 10 }}
+{{ if eq .Environment.Name "remote" }}
+      # Nodo Ampere A1 da 1 OCPU/6GB (ADR-0005): request più realistico per
+      # nginx che serve solo asset statici, per lasciare margine a Keycloak.
+      - resources:
+          requests:
+            cpu: 30m
+{{ end }}
     hooks:
       - events: ["presync"]
         command: "bash"
@@ -188,6 +231,25 @@ releases:
 {{ end }}
     values:
       - keycloak/values-keycloakx.yaml
+{{ if eq .Environment.Name "remote" }}
+      # Nodo Ampere A1 da 1 OCPU/6GB (ADR-0005): request più realistico per
+      # un Keycloak dev a singolo utente (250m saturava da solo quasi tutta
+      # l'unica OCPU disponibile insieme ai pod di sistema OKE).
+      - resources:
+          requests:
+            cpu: 150m
+      # "command" è una lista: i values Helm non fondono le liste elemento
+      # per elemento, vanno ridichiarate per intero per cambiare solo
+      # --hostname. Il browser raggiunge Keycloak tramite l'IP pubblico
+      # riservato (network.tf), non più "localhost" - l'issuer nei token
+      # deve rifletterlo, altrimenti oauth2-proxy lo rifiuta per mismatch.
+      - command:
+          - "/opt/keycloak/bin/kc.sh"
+          - "start"
+          - "--import-realm"
+          - '--hostname=http://{{ env "OCI_LB_IP" | default "localhost" }}'
+          - "--hostname-strict=false"
+{{ end }}
     # Cold-pull immagine ~250MB (~4min su rete locale lenta) + avvio
     # (schema DB, import realm, ~60-90s in condizioni normali, ma osservato
     # fino a superare 480s sotto carico di sistema sostenuto), vedi
@@ -215,12 +277,27 @@ releases:
       - events: ["postsync"]
         command: "bash"
         args: ["scripts/configure-user-profile.sh"]
+      # Solo in "remote": il redirect URI del client "onepiece-proxy" nel
+      # realm importato resta fisso su "localhost" - va corretto per l'IP
+      # pubblico riservato via Admin API (stesso motivo dei due hook sopra:
+      # "--import-realm" non aggiorna un client già esistente).
+      - events: ["postsync"]
+        command: "bash"
+        args: ["scripts/configure-remote-redirect-uris.sh"]
 
   - name: redis
     namespace: auth
     chart: ./helm/charts/redis
     needs:
       - auth/namespace
+{{ if eq .Environment.Name "remote" }}
+    values:
+      # Nodo Ampere A1 da 1 OCPU/6GB (ADR-0005): request più realistico per
+      # una cache che idle a consumo bassissimo, per lasciare margine a Keycloak.
+      - resources:
+          requests:
+            cpu: 30m
+{{ end }}
     # Backing store del session storage di oauth2-proxy (ADR-0009): niente
     # cold-pull pesante né readiness lenta, un'immagine alpine minuscola.
     timeout: 60
@@ -237,6 +314,17 @@ releases:
       - app/user-frontend
     values:
       - oauth2-proxy/values-oauth2-proxy.yaml
+{{ if eq .Environment.Name "remote" }}
+      # Il browser raggiunge Keycloak/oauth2-proxy tramite l'IP pubblico
+      # riservato (network.tf), non "localhost" - solo i campi con cui il
+      # browser interagisce direttamente cambiano; redeem-url/oidc-jwks-url
+      # restano sul DNS interno (chiamate server-to-server, invariate).
+      - extraArgs:
+          oidc-issuer-url: 'http://{{ env "OCI_LB_IP" | default "localhost" }}/realms/onepiece'
+          login-url: 'http://{{ env "OCI_LB_IP" | default "localhost" }}/realms/onepiece/protocol/openid-connect/auth'
+          redirect-url: 'http://{{ env "OCI_LB_IP" | default "localhost" }}/oauth2/callback'
+          whitelist-domain: '{{ env "OCI_LB_IP" | default "localhost" }}'
+{{ end }}
     timeout: 180
     hooks:
       # Il Secret con client-id/client-secret/cookie-secret deve esistere
@@ -244,3 +332,81 @@ releases:
       - events: ["presync"]
         command: "bash"
         args: ["scripts/generate-oauth2-proxy-secret.sh"]
+
+  # Ingress pubblico (ADR-0005): solo nell'ambiente "remote" ha senso un
+  # Load Balancer reale, ma la release resta definita per tutti gli
+  # ambienti per semplicità - in "default"/"ci" resta semplicemente inutilizzata
+  # (nessun accesso via kubectl port-forward ne viene impattato).
+  - name: ingress-namespace
+    namespace: ingress-nginx
+    chart: ./helm/charts/namespace
+    values:
+      - name: ingress-nginx
+        component: ingress
+    timeout: 30
+
+  - name: ingress-nginx
+    namespace: ingress-nginx
+    chart: ingress-nginx/ingress-nginx
+    version: 4.15.1
+    needs:
+      - ingress-nginx/ingress-namespace
+    values:
+      - controller:
+          service:
+            annotations:
+              # Always Free: un solo Flexible Load Balancer per tenancy,
+              # banda 10 Mbps fissa (min = max) - un max diverso da 10
+              # provisiona un LB a pagamento. Vedi docs/adr/0005.
+              service.beta.kubernetes.io/oci-load-balancer-shape: "flexible"
+              service.beta.kubernetes.io/oci-load-balancer-shape-flex-min: "10"
+              service.beta.kubernetes.io/oci-load-balancer-shape-flex-max: "10"
+              # Con la topologia a subnet unica (network.tf) il
+              # cloud-controller-manager OCI non riesce a dedurla da sé
+              # ("a subnet must be specified") - va data esplicitamente.
+              # Valore: terraform output -raw subnet_id (terraform/).
+              service.beta.kubernetes.io/oci-load-balancer-subnet1: '{{ env "OCI_LB_SUBNET_ID" | default "" }}'
+              # IP pubblico riservato (network.tf): senza dominio, gli URL
+              # OAuth2 di oauth2-proxy/Keycloak devono puntare a un indirizzo
+              # noto in anticipo, non a quello assegnato dinamicamente alla
+              # creazione del LB. Valore: terraform output -raw lb_ip.
+              oci.oraclecloud.com/reserved-ips: '{{ env "OCI_LB_IP" | default "" }}'
+          # Request più realistico per il nodo Ampere A1 da 1 OCPU/6GB
+          # (ADR-0005): questa release è comunque usata solo in "remote",
+          # dove il margine di CPU disponibile è stretto.
+          resources:
+            requests:
+              cpu: 50m
+              memory: 90Mi
+            limits:
+              cpu: 300m
+              memory: 200Mi
+    timeout: 180
+
+  - name: oauth2-proxy-ingress
+    namespace: auth
+    chart: ./helm/charts/ingress
+    needs:
+      - auth/oauth2-proxy
+      - ingress-nginx/ingress-nginx
+{{ if eq .Environment.Name "remote" }}
+    values:
+      # Il browser deve raggiungere Keycloak direttamente durante il flow
+      # OAuth2 (redirect di login su /realms, risorse statiche del tema su
+      # /resources) - non solo oauth2-proxy, che gestisce già "/" per
+      # frontend/backend (config.upstreams).
+      - paths:
+          - path: /
+            pathType: Prefix
+            backendServiceName: oauth2-proxy
+            backendServicePort: 4180
+          - path: /realms
+            pathType: Prefix
+            backendServiceName: keycloak-http
+            backendServicePort: 8080
+          - path: /resources
+            pathType: Prefix
+            backendServiceName: keycloak-http
+            backendServicePort: 8080
+{{ end }}
+    timeout: 30

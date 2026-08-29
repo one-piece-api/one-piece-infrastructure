@@ -26,6 +26,16 @@ service:
 
 httpScheme: http
 
+# Il default del chart è {} (nessun limite): esplicitiamo per coerenza col
+# resto dello stack e col budget stretto dell'ambiente remoto (ADR-0005).
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
 # Session storage server-side su Redis invece del default "cookie": con
 # sessioni solo-cookie, richieste concorrenti che trovano l'access token
 # scaduto rifanno CIASCUNA il redeem del refresh token, che Keycloak accetta

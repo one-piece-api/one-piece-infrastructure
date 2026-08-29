@@ -1,0 +1,14 @@
+namespace: auth
+component: identity-provider
+name: oauth2-proxy
+ingressClassName: nginx
+# Un catch-all verso oauth2-proxy (che instrada già frontend/backend, vedi
+# oauth2-proxy/values-oauth2-proxy.yaml) più eventuali path aggiuntivi
+# instradati altrove - es. Keycloak, che il browser deve raggiungere
+# direttamente durante il flow OAuth2 (redirect di login, risorse statiche
+# del tema), non solo via chiamate server-to-server.
+paths:
+  - path: /
+    pathType: Prefix
+    backendServiceName: oauth2-proxy
+    backendServicePort: 4180

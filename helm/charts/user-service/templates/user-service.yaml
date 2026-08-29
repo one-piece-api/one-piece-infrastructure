@@ -43,6 +43,12 @@ spec:
             - name: KEYCLOAK_INVITATION_TOKEN_LIFESPAN
               value: {{ .Values.invitationTokenLifespan | quote }}
             {{- end }}
+            {{- if .Values.jwtIssuerUri }}
+            # Override per l'ambiente "remote" (vedi values.yaml): il claim "iss"
+            # riflette l'hostname pubblico di Keycloak, non più "localhost".
+            - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+              value: {{ .Values.jwtIssuerUri | quote }}
+            {{- end }}
             - name: KEYCLOAK_ADMIN_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:

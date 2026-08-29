@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    project: onepiece-api
+    component: {{ .Values.component }}
+spec:
+  ingressClassName: {{ .Values.ingressClassName }}
+  rules:
+    # Nessun "host": regola catch-all per qualunque richiesta arrivi
+    # all'IP pubblico del Load Balancer (nessun dominio, ADR-0005).
+    # ingress-nginx ordina i path per prefisso più lungo, non per ordine di
+    # dichiarazione: non serve mettere "/" per ultimo.
+    - http:
+        paths:
+          {{- range .Values.paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ .backendServiceName }}
+                port:
+                  number: {{ .backendServicePort }}
+          {{- end }}
