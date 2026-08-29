@@ -26,6 +26,22 @@ service:
 
 httpScheme: http
 
+# Session storage server-side su Redis invece del default "cookie": con
+# sessioni solo-cookie, richieste concorrenti che trovano l'access token
+# scaduto rifanno CIASCUNA il redeem del refresh token, che Keycloak accetta
+# una sola volta (revokeRefreshToken/refreshTokenMaxReuse: 0 nel realm) — la
+# richiesta che perde la race riceve un 401 spurio anche se la sessione è
+# valida. Con Redis, oauth2-proxy centralizza lo stato e serializza il
+# refresh con un lock per sessione: chi arriva dopo aspetta il risultato già
+# ottenuto invece di ritentare da capo. Vedi docs/adr/0009-redis-session-store.md.
+sessionStorage:
+  type: redis
+  redis:
+    existingSecret: one-piece-redis-credentials
+    passwordKey: password
+    standalone:
+      connectionUrl: "redis://one-piece-redis.auth.svc.cluster.local:6379"
+
 # Flag passati direttamente al binario oauth2-proxy.
 # ref: https://oauth2-proxy.github.io/oauth2-proxy/configuration/overview
 extraArgs:

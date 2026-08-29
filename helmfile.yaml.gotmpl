@@ -216,6 +216,15 @@ releases:
         command: "bash"
         args: ["scripts/configure-user-profile.sh"]
 
+  - name: redis
+    namespace: auth
+    chart: ./helm/charts/redis
+    needs:
+      - auth/namespace
+    # Backing store del session storage di oauth2-proxy (ADR-0009): niente
+    # cold-pull pesante né readiness lenta, un'immagine alpine minuscola.
+    timeout: 60
+
   - name: oauth2-proxy
     namespace: auth
     chart: oauth2-proxy/oauth2-proxy
@@ -223,6 +232,7 @@ releases:
     needs:
       - auth/namespace
       - auth/keycloak
+      - auth/redis
       - app/user-service
       - app/user-frontend
     values:

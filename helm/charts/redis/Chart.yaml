@@ -1,0 +1,14 @@
+apiVersion: v2
+name: redis
+description: >
+  Redis a istanza singola — immagine ufficiale (docker.io/library/redis), non
+  un chart Helm reale: stesso ragionamento del micro-chart postgresql (un
+  Operator o il subchart redis-ha di terze parti aggiungerebbero complessità
+  non giustificata da una singola istanza locale, vedi
+  docs/adr/0001-local-auth-stack.md). Backing store per il session storage
+  di oauth2-proxy (vedi docs/adr/0009-redis-session-store.md): nessuna
+  persistenza (nessuna PersistentVolumeClaim), perché perdere le sessioni
+  cache a un riavvio del pod significa solo dover rifare il login, non una
+  perdita di dati applicativi.
+type: application
+version: 0.1.0
