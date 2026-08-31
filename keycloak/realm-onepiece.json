@@ -29,7 +29,7 @@
         "composite": true,
         "composites": {
           "client": {
-            "onepiece-proxy": ["users:read", "users:invite", "roles:write", "access:write", "audit:read"]
+            "onepiece-proxy": ["users:read", "users:invite", "roles:read", "roles:assign", "access:write", "audit:read"]
           }
         }
       },
@@ -58,7 +58,8 @@
       "onepiece-proxy": [
         { "name": "users:read", "description": "List and view crew members" },
         { "name": "users:invite", "description": "Invite a new crew member" },
-        { "name": "roles:write", "description": "Assign or revoke a crew member's roles" },
+        { "name": "roles:read", "description": "View the role/permission registry" },
+        { "name": "roles:assign", "description": "Assign or revoke a crew member's roles" },
         { "name": "access:write", "description": "Revoke or reactivate a crew member's access" },
         { "name": "audit:read", "description": "Read the ship's log (audit trail)" },
         { "name": "docs:read", "description": "View documents" },
