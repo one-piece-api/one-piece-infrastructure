@@ -211,7 +211,8 @@
       "enabled": true,
       "serviceAccountClientId": "user-service-admin",
       "clientRoles": {
-        "realm-management": ["manage-realm", "view-realm", "view-users", "query-users", "manage-users", "view-events"]
+        "realm-management": ["manage-realm", "view-realm", "view-users", "query-users", "manage-users", "view-events",
+          "manage-clients", "view-clients", "query-clients"]
       }
     },
     {
