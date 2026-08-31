@@ -13,7 +13,13 @@
 #      manage-realm/manage-clients/view-clients/query-clients (necessari per
 #      creare/eliminare ruoli e permessi via Admin API, vedi ADR-0012 - solo
 #      "manage-realm" non basta: Keycloak tratta la gestione dei ruoli realm
-#      e quella dei ruoli client come due permessi separati).
+#      e quella dei ruoli client come due permessi separati);
+#   4. i permessi placeholder "docs:read"/"docs:review"/"docs:write" (mai
+#      collegati a una feature reale - "Documenti", Step 18, descoped) possono
+#      ancora esistere su un realm già importato, insieme alla loro presenza
+#      nei composite di REVIEWER/EDITOR - rimossi dal registro (ADR-0012);
+#      eliminare un ruolo client-role in Keycloak lo toglie automaticamente
+#      da ogni composite che lo referenzia, quindi basta l'eliminazione qui.
 #
 # Idempotente: ogni passo controlla lo stato attuale prima di agire, quindi
 # è sicuro rieseguirlo (compreso un realm già completamente allineato, dove
@@ -60,6 +66,12 @@ kubectl exec -n auth statefulset/keycloak -- bash -c '
   for role in manage-realm manage-clients view-clients query-clients; do
     if ! printf "%s\n" "$sa_roles" | grep -qx "$role"; then
       /opt/keycloak/bin/kcadm.sh add-roles -r onepiece --uusername service-account-user-service-admin --cclientid realm-management --rolename "$role"
+    fi
+  done
+
+  for perm in docs:read docs:review docs:write; do
+    if printf "%s\n" "$existing_perms" | grep -qx "$perm"; then
+      /opt/keycloak/bin/kcadm.sh delete "clients/$cid/roles/$perm" -r onepiece
     fi
   done
 ' bash "$kc_admin_password"

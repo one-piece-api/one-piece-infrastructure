@@ -36,22 +36,12 @@
       {
         "name": "REVIEWER",
         "description": "Review and approval permissions",
-        "composite": true,
-        "composites": {
-          "client": {
-            "onepiece-proxy": ["docs:read", "docs:review"]
-          }
-        }
+        "composite": false
       },
       {
         "name": "EDITOR",
         "description": "Content editing permissions",
-        "composite": true,
-        "composites": {
-          "client": {
-            "onepiece-proxy": ["docs:read", "docs:write"]
-          }
-        }
+        "composite": false
       }
     ],
     "client": {
@@ -62,10 +52,7 @@
         { "name": "roles:assign", "description": "Assign or revoke a crew member's roles" },
         { "name": "roles:manage", "description": "Create/delete roles and permissions, assign permissions to roles" },
         { "name": "access:write", "description": "Revoke or reactivate a crew member's access" },
-        { "name": "audit:read", "description": "Read the ship's log (audit trail)" },
-        { "name": "docs:read", "description": "View documents" },
-        { "name": "docs:review", "description": "Review documents" },
-        { "name": "docs:write", "description": "Edit documents" }
+        { "name": "audit:read", "description": "Read the ship's log (audit trail)" }
       ]
     }
   },
