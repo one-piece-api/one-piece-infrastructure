@@ -8,7 +8,8 @@
 #      possono mancare, o essere ancora presenti sotto il vecchio nome
 #      "roles:write" (rinominato in ADR-0011/0012 di one-piece-user-service);
 #   2. il ruolo ADMIN può ancora avere "roles:write" tra i suoi composite
-#      invece dei tre permessi correnti;
+#      invece dei tre permessi correnti, e "roles:write" stesso può restare
+#      orfano nel registro dopo la rimozione dal composite;
 #   3. il service account "user-service-admin" può non avere ancora
 #      manage-realm/manage-clients/view-clients/query-clients (necessari per
 #      creare/eliminare ruoli e permessi via Admin API, vedi ADR-0012 - solo
@@ -55,6 +56,9 @@ kubectl exec -n auth statefulset/keycloak -- bash -c '
   admin_composites=$(/opt/keycloak/bin/kcadm.sh get-roles -r onepiece --rname ADMIN --cclientid onepiece-proxy --fields name --format csv --noquotes)
   if printf "%s\n" "$admin_composites" | grep -qx "roles:write"; then
     /opt/keycloak/bin/kcadm.sh remove-roles -r onepiece --rname ADMIN --cclientid onepiece-proxy --rolename roles:write
+  fi
+  if printf "%s\n" "$existing_perms" | grep -qx "roles:write"; then
+    /opt/keycloak/bin/kcadm.sh delete "clients/$cid/roles/roles:write" -r onepiece
   fi
   for perm in roles:read roles:assign roles:manage; do
     if ! printf "%s\n" "$admin_composites" | grep -qx "$perm"; then
