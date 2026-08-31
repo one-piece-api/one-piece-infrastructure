@@ -284,6 +284,13 @@ releases:
       - events: ["postsync"]
         command: "bash"
         args: ["scripts/configure-remote-redirect-uris.sh"]
+      # Porta i permessi roles:read/roles:assign/roles:manage e i grant del
+      # service account in linea con realm-onepiece.json su un realm già
+      # esistente (stesso motivo dei tre hook sopra) - vedi il commento in
+      # testa allo script per il dettaglio di cosa corregge e perché.
+      - events: ["postsync"]
+        command: "bash"
+        args: ["scripts/configure-role-catalog-permissions.sh"]
 
   - name: redis
     namespace: auth
