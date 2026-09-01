@@ -10,12 +10,10 @@
 # Attenzione: questo da solo NON basta a propagare modifiche a un realm che
 # esiste già nel DB. "--import-realm" (comando di avvio di Keycloak, vedi
 # keycloak/values-keycloakx.yaml) crea entità mancanti ma non aggiorna quelle
-# già presenti (bug noto: keycloak/keycloak#14884). Su un cluster già
-# avviato, dopo aver modificato realm-onepiece.json serve anche eliminare il
-# realm "onepiece" via Admin API/Console prima di riavviare Keycloak
-# (`kubectl rollout restart statefulset/keycloak -n auth`), così il prossimo
-# `--import-realm` lo ricrea da zero. Su un cluster nuovo (primo
-# `helmfile sync`) non serve: l'import iniziale è già completo.
+# già presenti (bug noto: keycloak/keycloak#14884). Non serve più correggerlo
+# a mano: l'hook postsync scripts/sync-realm-config.sh (keycloak-config-cli)
+# riconcilia il realm con questo stesso file ad ogni sync - vedi
+# docs/adr/0011-keycloak-config-cli-realm-sync.md.
 
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."

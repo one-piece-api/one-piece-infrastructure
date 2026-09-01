@@ -100,7 +100,7 @@ unica locale supportata/di default, condizione necessaria perche'
 - Su un realm gia' esistente, `loginTheme`/`internationalizationEnabled`
   aggiunti a `realm-onepiece.json` non vengono applicati in automatico da
   `--import-realm` (limite noto, vedi il commento in testa a
-  `scripts/apply-realm-configmap.sh`): su un cluster gia' avviato serve
-  eliminare il realm `onepiece` via Admin API/Console prima del prossimo
-  riavvio di Keycloak, esattamente come per ogni altra modifica al realm
-  importato.
+  `scripts/apply-realm-configmap.sh`) - propagati invece automaticamente
+  dall'hook postsync `scripts/sync-realm-config.sh` (keycloak-config-cli),
+  introdotto proprio per questo caso - vedi
+  `docs/adr/0011-keycloak-config-cli-realm-sync.md`.

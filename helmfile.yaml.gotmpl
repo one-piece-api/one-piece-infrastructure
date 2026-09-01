@@ -289,6 +289,16 @@ releases:
       - events: ["presync"]
         command: "bash"
         args: ["scripts/apply-realm-configmap.sh"]
+      # Riconcilia il realm con realm-onepiece.json via keycloak-config-cli:
+      # "--import-realm" da solo crea le entità mancanti ma non aggiorna un
+      # realm già esistente (bug noto, vedi il commento in apply-realm-configmap.sh)
+      # - questo hook chiude quel gap per ogni futura modifica al realm
+      # dichiarativo, non solo per quelle già note ai tre hook sotto (che
+      # restano per SMTP/redirect URI specifici dell'ambiente, non presenti
+      # nel JSON) - vedi docs/adr/0011-keycloak-config-cli-realm-sync.md.
+      - events: ["postsync"]
+        command: "bash"
+        args: ["scripts/sync-realm-config.sh"]
       # Il realm importato punta già all'host SMTP di Resend (vedi
       # keycloak/realm-onepiece.json), ma senza credenziale - un segreto non
       # va committato. Questo hook imposta la password (RESEND_API_KEY) via

@@ -1,0 +1,67 @@
+# Job one-shot che riconcilia il realm "onepiece" con lo stato dichiarato in
+# realm-onepiece.json, sostituendo l'idea che "--import-realm" da solo tenga
+# un realm già esistente allineato (vedi docs/adr/0011). Applicato/ricreato
+# ad ogni sync da scripts/sync-realm-config.sh (hook postsync della release
+# "keycloak"), non gestito da Helm: un Job è immutabile, quindi va eliminato
+# e riapplicato esplicitamente per farlo rieseguire quando il contenuto della
+# ConfigMap montata cambia (o per correggere drift introdotto a mano via
+# Admin Console, non solo per inseguire i commit).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keycloak-config-cli
+  namespace: auth
+  labels:
+    project: onepiece-api
+    component: identity-provider
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        project: onepiece-api
+        component: identity-provider
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: keycloak-config-cli
+          # v6.5.1 (ultima stabile), tag per major Keycloak (nessun tag per
+          # la patch esatta 26.6.4 pubblicato da upstream - schema di
+          # tagging per major version, la compatibilità entro lo stesso
+          # major è l'assunzione esplicita di upstream).
+          image: adorsys/keycloak-config-cli:6.5.1-26
+          env:
+            - name: KEYCLOAK_URL
+              value: http://keycloak-http.auth.svc.cluster.local:8080
+            - name: KEYCLOAK_USER
+              value: admin
+            # Placeholder locale (KC_BOOTSTRAP_ADMIN_PASSWORD in
+            # keycloak/values-keycloakx.yaml), non un segreto reale - stesso
+            # pattern già duplicato in scripts/configure-realm-smtp.sh.
+            - name: KEYCLOAK_PASSWORD
+              value: "admin-change-me-locally"
+            - name: IMPORT_FILES_LOCATIONS
+              value: /config/realm-onepiece.json
+            - name: KEYCLOAK_AVAILABILITYCHECK_ENABLED
+              value: "true"
+            - name: KEYCLOAK_AVAILABILITYCHECK_TIMEOUT
+              value: 120s
+          volumeMounts:
+            - name: realm-config
+              mountPath: /config
+              readOnly: true
+          # Contenuto da riverificare dopo la prima esecuzione reale (nodo
+          # Ampere A1 condiviso, budget stretto - stesso spirito di
+          # docs/adr/0005 sul tuning delle risorse).
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: realm-config
+          configMap:
+            name: one-piece-realm-config
