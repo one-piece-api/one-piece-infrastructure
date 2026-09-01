@@ -6,6 +6,13 @@ imagePullPolicy: IfNotPresent
 imagePullSecrets: []
 port: 80
 
+# Override dell'origin di Keycloak dal default hardcoded nel Dockerfile del
+# repo one-piece-user-frontend (http://localhost:8080) - vuoto (default):
+# invariato per locale/CI. Impostato dall'ambiente Helmfile "remote" (vedi
+# helmfile.yaml.gotmpl), stesso schema di jwtIssuerUri in
+# helm/charts/user-service/values.yaml.
+keycloakOrigin: ""
+
 resources:
   requests:
     cpu: 50m

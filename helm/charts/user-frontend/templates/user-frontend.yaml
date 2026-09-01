@@ -29,6 +29,17 @@ spec:
           ports:
             - name: http
               containerPort: {{ .Values.port }}
+          {{- if .Values.keycloakOrigin }}
+          env:
+            # Origin di Keycloak così come raggiungibile dal browser -
+            # genera config.json a startup del container (vedi
+            # docker-entrypoint.d/40-generate-runtime-config.sh nel repo
+            # one-piece-user-frontend, docs/adr/0001-runtime-config-injection.md).
+            # Override per l'ambiente "remote" (vedi helmfile.yaml.gotmpl);
+            # vuoto altrove, resta il default del Dockerfile (localhost:8080).
+            - name: KEYCLOAK_ORIGIN
+              value: {{ .Values.keycloakOrigin | quote }}
+          {{- end }}
           readinessProbe:
             httpGet:
               path: /healthz

@@ -217,6 +217,12 @@ releases:
       - resources:
           requests:
             cpu: 30m
+      # Il browser raggiunge Keycloak sulla stessa origin dell'app (routing
+      # per path dietro l'Ingress, non più "localhost:8080") - genera
+      # config.json a startup del container (repo one-piece-user-frontend,
+      # docs/adr/0001-runtime-config-injection.md). Stesso schema di
+      # jwtIssuerUri sulla release "user-service" poco sotto.
+      - keycloakOrigin: 'http://{{ env "OCI_LB_IP" | default "localhost:8080" }}'
 {{ end }}
     hooks:
       - events: ["presync"]
