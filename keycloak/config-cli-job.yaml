@@ -29,8 +29,11 @@ spec:
           # v6.5.1 (ultima stabile), tag per major Keycloak (nessun tag per
           # la patch esatta 26.6.4 pubblicato da upstream - schema di
           # tagging per major version, la compatibilità entro lo stesso
-          # major è l'assunzione esplicita di upstream).
-          image: adorsys/keycloak-config-cli:6.5.1-26
+          # major è l'assunzione esplicita di upstream). Host del registry
+          # esplicito (docker.io): sui nodi OKE il runtime CRI ha lo short
+          # name mode in "enforcing" e rifiuta un nome immagine senza
+          # registry come ambiguo (osservato nel primo deploy remoto).
+          image: docker.io/adorsys/keycloak-config-cli:6.5.1-26
           env:
             - name: KEYCLOAK_URL
               value: http://keycloak-http.auth.svc.cluster.local:8080
