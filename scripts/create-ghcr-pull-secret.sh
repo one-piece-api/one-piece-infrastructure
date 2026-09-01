@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
-# Crea (o aggiorna) il Secret imagePullSecret per ghcr.io nel namespace "app".
+# Crea (o aggiorna) il Secret imagePullSecret per ghcr.io nel namespace dato
+# (default "app").
 #
-# Hook presync delle release "user-service" e "user-frontend" in
-# helmfile.yaml.gotmpl: nell'ambiente "ci" i loro Pod referenziano questo Secret
-# tramite imagePullSecrets (i package GHCR sono privati di default) e deve
-# quindi esistere già quando il chart viene sincronizzato.
+# Hook presync delle release "user-service", "user-frontend" (namespace
+# "app") e "keycloak" (namespace "auth", immagine one-piece-keycloak-theme)
+# in helmfile.yaml.gotmpl: nell'ambiente "ci"/"remote" i loro Pod referenziano
+# questo Secret tramite imagePullSecrets (i package GHCR sono privati di
+# default) e deve quindi esistere già, nel namespace giusto, quando il chart
+# viene sincronizzato. I Secret sono namespace-scoped: un namespace diverso
+# richiede una copia propria, non basta crearlo una volta in "app".
 #
 # In locale (ambiente "default") le immagini sono costruite a mano e
 # caricate direttamente nel cluster kind con "kind load docker-image"
@@ -16,6 +20,8 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 # shellcheck disable=SC1091
 source scripts/lib/load-env-local.sh
 
+namespace="${1:-app}"
+
 if [ -z "${GHCR_PULL_TOKEN:-}" ]; then
   echo "[create-ghcr-pull-secret] GHCR_PULL_TOKEN non impostata, salto (ambiente locale)."
   exit 0
@@ -25,4 +31,4 @@ kubectl create secret docker-registry ghcr-pull-secret \
   --docker-server=ghcr.io \
   --docker-username="${GHCR_PULL_USERNAME:?GHCR_PULL_USERNAME non impostata}" \
   --docker-password="$GHCR_PULL_TOKEN" \
-  -n app --dry-run=client -o yaml | kubectl apply -f -
+  -n "$namespace" --dry-run=client -o yaml | kubectl apply -f -

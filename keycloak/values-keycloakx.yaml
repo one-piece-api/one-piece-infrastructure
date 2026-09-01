@@ -14,9 +14,18 @@ commonLabels:
   project: onepiece-api
   component: identity-provider
 
+# Default per l'ambiente locale ("default"): immagine one-piece-keycloak-theme
+# (repo dedicato, FROM quay.io/keycloak/keycloak:26.6.4 + tema "onepiece" -
+# vedi docs/adr/0010-custom-keycloak-theme.md), costruita e caricata nel
+# cluster kind dall'hook presync build-and-load-local-image.sh, stesso
+# pattern di user-service/user-frontend (ADR-0003). Gli ambienti "ci"/"remote"
+# la sovrascrivono con l'immagine pubblicata su GHCR (ADR-0004) - vedi
+# helmfile.yaml.gotmpl.
 image:
-  repository: quay.io/keycloak/keycloak
-  tag: "26.6.4"
+  repository: one-piece-keycloak-theme
+  tag: local
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
 
 # Import dichiarativo del realm all'avvio, dalla ConfigMap
 # `one-piece-realm-config` montata nella cartella scandita da Keycloak.

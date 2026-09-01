@@ -39,6 +39,9 @@ environments:
         userServiceImagePullPolicy: ""
         userFrontendImage: ""
         userFrontendImagePullPolicy: ""
+        keycloakImageRepository: ""
+        keycloakImageTag: ""
+        keycloakImagePullPolicy: ""
         imagePullSecrets: []
         invitationTokenLifespan: ""
   ci:
@@ -47,6 +50,11 @@ environments:
         userServiceImagePullPolicy: Always
         userFrontendImage: ghcr.io/one-piece-api/user-frontend:latest
         userFrontendImagePullPolicy: Always
+        # Tema custom (docs/adr/0010-custom-keycloak-theme.md), stessa
+        # origine GHCR delle altre immagini applicative.
+        keycloakImageRepository: ghcr.io/one-piece-api/keycloak-theme
+        keycloakImageTag: latest
+        keycloakImagePullPolicy: Always
         # I package GHCR sono privati di default: questo Secret (creato
         # dall'hook presync di ciascuna release, script
         # scripts/create-ghcr-pull-secret.sh) è necessario per il pull.
@@ -67,6 +75,9 @@ environments:
         userServiceImagePullPolicy: Always
         userFrontendImage: ghcr.io/one-piece-api/user-frontend:latest
         userFrontendImagePullPolicy: Always
+        keycloakImageRepository: ghcr.io/one-piece-api/keycloak-theme
+        keycloakImageTag: latest
+        keycloakImagePullPolicy: Always
         imagePullSecrets:
           - name: ghcr-pull-secret
         invitationTokenLifespan: ""
@@ -231,6 +242,12 @@ releases:
 {{ end }}
     values:
       - keycloak/values-keycloakx.yaml
+      - image:
+          repository: '{{ .Values.keycloakImageRepository | default "one-piece-keycloak-theme" }}'
+          tag: '{{ .Values.keycloakImageTag | default "local" }}'
+          pullPolicy: '{{ .Values.keycloakImagePullPolicy | default "IfNotPresent" }}'
+        imagePullSecrets:
+          {{ .Values.imagePullSecrets | toYaml | nindent 10 }}
 {{ if eq .Environment.Name "remote" }}
       # Nodo Ampere A1 da 1 OCPU/6GB (ADR-0005): request più realistico per
       # un Keycloak dev a singolo utente (250m saturava da solo quasi tutta
@@ -256,6 +273,16 @@ releases:
     # docs/adr/0002-helmfile-orchestration.md.
     timeout: 600
     hooks:
+      # Analogo agli hook di user-service/user-frontend: Secret di pull GHCR
+      # (namespace "auth", qui - i Secret sono namespace-scoped) e build+load
+      # locale dell'immagine one-piece-keycloak-theme (repo sibling), no-op
+      # fuori dall'ambiente "default" - vedi docs/adr/0010.
+      - events: ["presync"]
+        command: "bash"
+        args: ["scripts/create-ghcr-pull-secret.sh", "auth"]
+      - events: ["presync"]
+        command: "bash"
+        args: ["scripts/build-and-load-local-image.sh", "one-piece-keycloak-theme"]
       # La ConfigMap del realm deve esistere ed essere aggiornata prima che
       # il chart venga sincronizzato, perché Keycloak la monta e la importa
       # all'avvio (--import-realm).
