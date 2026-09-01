@@ -104,3 +104,15 @@ unica locale supportata/di default, condizione necessaria perche'
   dall'hook postsync `scripts/sync-realm-config.sh` (keycloak-config-cli),
   introdotto proprio per questo caso - vedi
   `docs/adr/0011-keycloak-config-cli-realm-sync.md`.
+
+**Aggiornamento (2026-09-01):** `supportedLocales` estese a `["it", "en"]`
+(`defaultLocale: "en"`, fallback quando l'header `Accept-Language` del
+browser non indica italiano - stessa negoziazione lato browser usata dal
+frontend, vedi ADR-0002 in `one-piece-user-frontend`), coerente con l'UI
+bilingue introdotta nel frontend. `messages_en.properties` aggiunto accanto
+a `messages_it.properties` con lo stesso set di chiavi e lo stesso tono
+piratesco, invece di lasciare risolvere l'inglese al bundle base di Keycloak
+(che userebbe la copy generica del tema ufficiale, non quella a tema
+"Sunny Deck"). Il selettore lingua nativo di Keycloak (`#kc-locale`, prima
+nascosto via CSS quando l'unica locale attiva rendeva il selettore inutile)
+e' ora visibile e stilizzato in `onepiece.css`.
