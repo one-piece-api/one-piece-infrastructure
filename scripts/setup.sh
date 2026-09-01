@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Crea l'intero ambiente locale di autenticazione da zero, un solo comando:
-# prerequisiti → cluster kind → stack (namespace, PostgreSQL, Keycloak,
-# whoami, oauth2-proxy, orchestrati da Helmfile) → smoke test end-to-end.
+# prerequisiti → cluster kind → stack (namespace, PostgreSQL, Redis, Keycloak,
+# user-service, user-frontend, oauth2-proxy, orchestrati da Helmfile) →
+# smoke test end-to-end.
 #
 # Le dipendenze tra i componenti dello stack sono dichiarate in
 # ../helmfile.yaml (needs:), non nell'ordine di questo script — vedi
@@ -21,7 +22,7 @@ export HELMFILE_ENVIRONMENT="${HELMFILE_ENVIRONMENT:-default}"
 ./00-check-prerequisites.sh
 ./01-create-cluster.sh
 
-log "sincronizzo lo stack (namespace, PostgreSQL, Keycloak, whoami, oauth2-proxy) via Helmfile [ambiente: $HELMFILE_ENVIRONMENT]..."
+log "sincronizzo lo stack (namespace, PostgreSQL, Redis, Keycloak, user-service, user-frontend, oauth2-proxy) via Helmfile [ambiente: $HELMFILE_ENVIRONMENT]..."
 (cd "$REPO_ROOT" && helmfile --environment "$HELMFILE_ENVIRONMENT" sync)
 
 ./02-smoke-test.sh

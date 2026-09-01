@@ -16,13 +16,14 @@ dell'infrastruttura, mantenuto separato dal codice applicativo:
 ## Stato del repository
 
 Ambiente locale di autenticazione funzionante su kind: Keycloak (realm
-`onepiece` importato dichiarativamente) + PostgreSQL + Redis + oauth2-proxy,
-con un upstream temporaneo (`whoami`) per validare il flow OAuth 2.0
-Authorization Code + PKCE. Nessun Ingress/DNS: accesso esclusivamente via
-`kubectl port-forward`. Lo stack è orchestrato da Helmfile (dipendenze tra
+`onepiece` importato dichiarativamente, tema custom "onepiece" - ADR-0010)
++ PostgreSQL + Redis + oauth2-proxy davanti a `user-service`/`user-frontend`
+(repo sibling). Accesso esclusivamente via `kubectl port-forward`, nessun
+Ingress/DNS locale. Lo stack è orchestrato da Helmfile (dipendenze tra
 componenti dichiarate esplicitamente). Dettagli e motivazioni delle scelte
 in `docs/adr/0001-local-auth-stack.md`,
-`docs/adr/0002-helmfile-orchestration.md` e
+`docs/adr/0002-helmfile-orchestration.md`,
+`docs/adr/0003-app-namespace-and-first-services.md` e
 `docs/adr/0009-redis-session-store.md` (Redis come session storage di
 oauth2-proxy).
 
@@ -37,8 +38,10 @@ one-piece-infrastructure/
 ├── kubernetes/                # Config cluster kind
 ├── keycloak/                  # values Helm, realm dichiarativo (unica source of truth)
 ├── oauth2-proxy/               # values Helm, credenziali locali (non committate)
-├── helm/charts/                 # Micro-chart locali: namespace, postgresql, redis, whoami
-│                                 # (manifest raw wrappati per Helmfile, vedi ADR-0002)
+├── helm/charts/                 # Micro-chart locali: namespace, postgresql,
+│                                 # redis, ingress, mailpit, user-frontend,
+│                                 # user-service (manifest raw wrappati per
+│                                 # Helmfile, vedi ADR-0002)
 ├── networking/                  # Ingress, network policy, DNS, TLS (futuro)
 └── docs/
     └── adr/                      # Architecture Decision Records
@@ -63,7 +66,7 @@ cp .env.local.example .env.local   # una tantum: valorizza RESEND_API_KEY
 |---|---|
 | `scripts/00-check-prerequisites.sh` | verifica docker/kind/kubectl/helm/helmfile/jq/openssl/curl |
 | `scripts/01-create-cluster.sh` | crea il cluster kind `onepiece` (idempotente) |
-| `helmfile sync` (da `helmfile.yaml.gotmpl`) | applica namespace, PostgreSQL, Keycloak, Redis, whoami, oauth2-proxy nell'ordine dettato dalle loro dipendenze (`needs:`) |
+| `helmfile sync` (da `helmfile.yaml.gotmpl`) | applica namespace, PostgreSQL, Redis, Keycloak, user-service, user-frontend, oauth2-proxy nell'ordine dettato dalle loro dipendenze (`needs:`) |
 | `scripts/02-smoke-test.sh` | verifica l'intero flow Authorization Code + PKCE via curl |
 
 `HELMFILE_ENVIRONMENT` (env var, default `default`) sceglie l'origine delle
