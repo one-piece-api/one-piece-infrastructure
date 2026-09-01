@@ -46,6 +46,12 @@
         "name": "EDITOR",
         "description": "Content editing permissions",
         "composite": false
+      },
+      {
+        "name": "default-roles-onepiece",
+        "description": "Keycloak's built-in default role - pinned here with no composites (see ADR-0012) so no realm/client role, including offline_access and uma_authorization, is auto-granted to new users.",
+        "composite": true,
+        "composites": {}
       }
     ],
     "client": {
