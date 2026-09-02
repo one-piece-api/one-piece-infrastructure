@@ -194,6 +194,28 @@ locale.
   finale l'interfaccia self-service nativa di Keycloak, preferendo pagine
   singole e mirate per una sola azione.
 
+**La sessione oauth2-proxy resta valida dopo una cancellazione riuscita**
+(bug segnalato dall'utente: "se vado sull'app riesco ancora a navigare come
+l'utente appena cancellato"). Causa: la sessione di `oauth2-proxy` (un
+cookie separato dalla sessione SSO di Keycloak) non viene mai toccata da
+questo flusso, e il suo access token gia' emesso resta valido - `SecurityConfig`
+in `one-piece-user-service` valida i JWT solo per firma/scadenza, senza
+controllo di revoca per-richiesta (stesso limite gia' accettato per UF-IDU-13,
+la revoca admin) - fino alla sua scadenza naturale (`accessTokenLifespan`,
+~5 minuti). Un fix "reattivo" (reagire al redirect di ritorno su
+`redirect_uri`) non basta: su cancellazione **riuscita** Keycloak mostra una
+propria pagina statica di successo e non esegue affatto un redirect OAuth
+verso `redirect_uri` (vedi il limite residuo qui sopra) - quindi non c'e'
+alcun momento affidabile in cui l'app possa intercettare l'esito per pulire
+la sessione dopo il fatto. Risolto invece incatenando `/oauth2/sign_out`
+*prima* di raggiungere Keycloak (`startAccountDeletionUrl()` in
+`auth-urls.ts`, stesso meccanismo gia' usato da `logoutUrl()`): pulisce la
+sessione oauth2-proxy immediatamente e incondizionatamente, prima ancora
+che l'utente veda la pagina di ri-autenticazione - corretto sia che l'utente
+confermi, sia che annulli, sia che abbandoni il flusso. Un annullamento non
+costa un secondo login manuale: la sessione SSO di Keycloak resta viva, quindi
+la richiesta successiva la ri-autentica in modo invisibile.
+
 ## Conseguenze
 
 - Zero codice nuovo in `user-service`: l'intera funzionalita' e' realm-config
