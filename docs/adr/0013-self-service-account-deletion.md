@@ -148,15 +148,22 @@ considerate"). Corretto dichiarando esplicitamente il client `account` in
 `http://localhost:4180/*` aggiunto a `redirectUris`, e cambiando
 `deleteAccountUrl()` per puntare li'. Verificato live: "Annulla" ora
 atterra sull'app (`kc_action_status=cancelled` nella query string, mai
-consumata dall'app). **Limite residuo, non risolto**: la pagina statica di
-successo di Keycloak ("Rimozione dell'utente riuscita") ha un link "Torna
-all'app" hardcoded verso l'Account Console di Keycloak, non verso
-`redirect_uri` - nessuna sessione sopravvive a quel punto per completare un
-vero redirect OAuth, quindi Keycloak mostra sempre questa pagina statica
-propria. Correggerlo richiederebbe lo stesso override `.ftl` scartato sotto
-per la pagina di ri-autenticazione - impatto minore perche' l'account e'
-gia' cancellato a quel punto (cliccare il link mostra solo la maschera di
-login di Keycloak, non un pannello privilegiato).
+consumata dall'app). Sulla pagina statica di successo ("Rimozione
+dell'utente riuscita") il link "Torna all'app" atterrava invece
+sull'Account Console di Keycloak (segnalato dall'utente, non colto nella
+verifica iniziale): nessuna sessione sopravvive a una cancellazione
+riuscita per completare un vero redirect OAuth verso `redirect_uri`, quindi
+quella pagina non e' un `.ftl` nostro ma il template base `info.ftl`, che
+in questo caso usa `client.baseUrl` del client che ha avviato l'azione
+(`account`) come link di fallback - e quel client, ridichiarato qui solo
+per estendere `redirectUris`, aveva ancora il `baseUrl` di default di
+Keycloak (`/realms/onepiece/account/`, mai cambiato). Corretto impostando
+`baseUrl` sull'origine dell'app (`http://localhost:4180/` nel JSON,
+`http://$OCI_LB_IP/` su `remote` via `configure-remote-redirect-uris.sh`,
+stesso motivo per cui gia' patcha `redirectUris` li') - nessun override
+`.ftl` necessario, il template base gia' supporta questo caso. Verificato
+localmente ricreando il flusso con un utente usa-e-getta: il link ora porta
+dritto all'app.
 
 **Nessun link "torna all'app" sulla pagina di ri-autenticazione** (prima
 del passo Conferma/Annulla): quella pagina (`login-password.ftl`, tema

@@ -2,7 +2,9 @@
 # Aggiunge l'IP pubblico riservato ai redirect URI dei client "onepiece-proxy"
 # e "account" (quest'ultimo per la cancellazione self-service dell'account,
 # ADR-0013 - deleteAccountUrl() in one-piece-user-frontend costruisce
-# redirect_uri dall'origin corrente dell'app), solo nell'ambiente "remote" -
+# redirect_uri dall'origin corrente dell'app) e al baseUrl di "account" (il
+# link "Back to app" sulla pagina di successo di Keycloak usa client.baseUrl -
+# vedi ADR-0013), solo nell'ambiente "remote" -
 # keycloak/realm-onepiece.json resta fisso su "localhost" (locale/CI, unica
 # source of truth per quegli ambienti), e "--import-realm" non aggiorna un
 # client già esistente in un realm già importato (bug noto, vedi il commento
@@ -36,7 +38,8 @@ kubectl exec -n auth statefulset/keycloak -- bash -c '
 
   account_client_id="$(/opt/keycloak/bin/kcadm.sh get clients -r onepiece -q clientId=account --fields id --format csv --noquotes)"
   /opt/keycloak/bin/kcadm.sh update "clients/$account_client_id" -r onepiece \
-    -s "redirectUris=[\"/realms/onepiece/account/*\",\"http://localhost:4180/*\",\"http://$2/*\"]"
+    -s "redirectUris=[\"/realms/onepiece/account/*\",\"http://localhost:4180/*\",\"http://$2/*\"]" \
+    -s "baseUrl=http://$2/"
 ' bash "$kc_admin_password" "$OCI_LB_IP"
 
-echo "[configure-remote-redirect-uris] redirect URI dei client 'onepiece-proxy' e 'account' aggiornati per $OCI_LB_IP."
+echo "[configure-remote-redirect-uris] redirect URI e baseUrl dei client 'onepiece-proxy'/'account' aggiornati per $OCI_LB_IP."

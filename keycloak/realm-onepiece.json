@@ -233,8 +233,7 @@
     {
       "clientId": "account",
       "description": "Built-in client, declared here only to extend redirectUris for self-service account deletion (ADR-0013) - lands back on the app, not Keycloak's Account Console.",
-      "rootUrl": "${authBaseUrl}",
-      "baseUrl": "/realms/onepiece/account/",
+      "baseUrl": "http://localhost:4180/",
       "publicClient": true,
       "standardFlowEnabled": true,
       "redirectUris": [
