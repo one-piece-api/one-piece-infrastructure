@@ -5,6 +5,7 @@
   "editUsernameAllowed": true,
   "resetPasswordAllowed": true,
   "loginTheme": "onepiece",
+  "emailTheme": "onepiece",
   "internationalizationEnabled": true,
   "supportedLocales": ["it", "en"],
   "defaultLocale": "en",
