@@ -33,19 +33,30 @@
         "composite": true,
         "composites": {
           "client": {
-            "onepiece-proxy": ["users:read", "users:invite", "roles:read", "roles:assign", "roles:manage", "access:write", "audit:read"]
+            "onepiece-proxy": ["users:read", "users:invite", "roles:read", "roles:assign", "roles:manage", "access:write", "audit:read"],
+            "account": ["delete-account"]
           }
         }
       },
       {
         "name": "REVIEWER",
         "description": "Review and approval permissions",
-        "composite": false
+        "composite": true,
+        "composites": {
+          "client": {
+            "account": ["delete-account"]
+          }
+        }
       },
       {
         "name": "EDITOR",
         "description": "Content editing permissions",
-        "composite": false
+        "composite": true,
+        "composites": {
+          "client": {
+            "account": ["delete-account"]
+          }
+        }
       },
       {
         "name": "default-roles-onepiece",
@@ -66,6 +77,17 @@
       ]
     }
   },
+  "requiredActions": [
+    {
+      "alias": "delete_account",
+      "name": "Delete Account",
+      "providerId": "delete_account",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 60,
+      "config": {}
+    }
+  ],
   "clientScopes": [
     {
       "name": "profile",
@@ -200,6 +222,18 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": true,
       "authorizationServicesEnabled": false
+    },
+    {
+      "clientId": "account",
+      "description": "Built-in client, declared here only to extend redirectUris for self-service account deletion (ADR-0013) - lands back on the app, not Keycloak's Account Console.",
+      "rootUrl": "${authBaseUrl}",
+      "baseUrl": "/realms/onepiece/account/",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "redirectUris": [
+        "/realms/onepiece/account/*",
+        "http://localhost:4180/*"
+      ]
     }
   ],
   "users": [
