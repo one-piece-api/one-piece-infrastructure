@@ -49,6 +49,12 @@ spec:
             - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
               value: {{ .Values.jwtIssuerUri | quote }}
             {{- end }}
+            {{- if .Values.invitationRedirectUri }}
+            # Override per l'ambiente "remote" (vedi values.yaml): dove atterra
+            # il browser a fine flusso di invito, non più "localhost:4180".
+            - name: KEYCLOAK_INVITATION_REDIRECT_URI
+              value: {{ .Values.invitationRedirectUri | quote }}
+            {{- end }}
             - name: KEYCLOAK_ADMIN_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:

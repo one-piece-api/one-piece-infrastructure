@@ -180,6 +180,11 @@ releases:
         # (IP riservato, network.tf), non più "localhost" - vedi
         # helm/charts/user-service/values.yaml.
         jwtIssuerUri: 'http://{{ env "OCI_LB_IP" | default "localhost:8080" }}/realms/onepiece'
+        # Dove atterra il browser a fine flusso di invito (UPDATE_PASSWORD/
+        # UPDATE_PROFILE/VERIFY_EMAIL) - stesso IP pubblico riservato, non più
+        # "localhost:4180" (oauth2-proxy gira sulla stessa origin dietro
+        # l'Ingress, vedi keycloakOrigin sulla release "user-frontend" sotto).
+        invitationRedirectUri: 'http://{{ env "OCI_LB_IP" | default "localhost:4180" }}/'
 {{ end }}
     hooks:
       - events: ["presync"]

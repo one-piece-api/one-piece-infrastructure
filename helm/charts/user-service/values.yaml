@@ -43,3 +43,10 @@ invitationTokenLifespan: ""
 # pubblico riservato, non "localhost". Vuoto (default): resta il valore
 # nella properties, invariato per locale/CI.
 jwtIssuerUri: ""
+
+# Overrides application.properties' keycloak.invitation.redirect-uri (fisso su
+# http://localhost:4180/) via l'env var Spring standard - dove il browser
+# atterra a fine flusso di invito (UPDATE_PASSWORD/UPDATE_PROFILE/VERIFY_EMAIL),
+# stesso motivo di jwtIssuerUri sopra. Vuoto (default): resta il valore nella
+# properties, invariato per locale/CI.
+invitationRedirectUri: ""
