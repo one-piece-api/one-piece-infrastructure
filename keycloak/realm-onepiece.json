@@ -75,6 +75,12 @@
         { "name": "roles:manage", "description": "Create/delete roles and permissions, assign permissions to roles" },
         { "name": "access:write", "description": "Revoke or reactivate a crew member's access" },
         { "name": "audit:read", "description": "Read the ship's log (audit trail)" }
+      ],
+      "account": [
+        {
+          "name": "delete-account",
+          "description": "Keycloak's built-in role, redeclared because the \"account\" client itself is redeclared below (see ADR-0014)."
+        }
       ]
     }
   },
