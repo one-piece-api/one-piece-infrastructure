@@ -88,13 +88,31 @@ jobs:
             --file "${{ github.workspace }}/kubeconfig" \
             --token-version 2.0.0
 
+      # Recovery una tantum (2026-09-20): il primissimo deploy di content-service
+      # è fallito perché l'immagine non esisteva ancora su GHCR, lasciando un pod
+      # bloccato in ImagePullBackOff con un backoff di retry ormai lungo (la
+      # cache del backoff vive sul pod, non su questo job) - un secondo
+      # "helmfile sync" con lo stesso pod non forza un nuovo pull entro i 120s di
+      # --wait, esattamente il motivo per cui "Riavvia i workload con tag
+      # mobile..." sotto esiste già per user-service/user-frontend/keycloak, ma
+      # gira DOPO helmfile sync e quindi non aiuta se è proprio quello step a
+      # fallire. Elimina il pod (se esiste ed è davvero bloccato) prima del
+      # sync, cosicché il ReplicaSet ne crei uno nuovo con backoff azzerato - un
+      # normale "helm upgrade" a spec invariata non lo farebbe da solo.
+      - name: Recovery mirato per un pod content-service bloccato in ImagePullBackOff
+        env:
+          KUBECONFIG: ${{ github.workspace }}/kubeconfig
+        run: |
+          kubectl delete pod -n app -l app=one-piece-content-service \
+            --field-selector=status.phase!=Running --ignore-not-found=true || true
+
       - name: helmfile sync (ambiente remote)
         env:
           KUBECONFIG: ${{ github.workspace }}/kubeconfig
         run: helmfile --environment remote sync
 
-      # user-frontend/user-service/keycloak-theme usano il tag mobile
-      # ":latest": un nuovo push su GHCR non cambia la stringa immagine
+      # user-frontend/user-service/content-service/keycloak-theme usano il tag
+      # mobile ":latest": un nuovo push su GHCR non cambia la stringa immagine
       # nello spec del workload, quindi "helm upgrade" non vede alcuna
       # differenza e non fa ripartire i pod, anche con
       # imagePullPolicy: Always (Kubernetes ripulisce l'immagine solo
@@ -108,9 +126,11 @@ jobs:
         run: |
           kubectl rollout restart deployment/one-piece-user-frontend -n app
           kubectl rollout restart deployment/one-piece-user-service -n app
+          kubectl rollout restart deployment/one-piece-content-service -n app
           kubectl rollout restart statefulset/keycloak -n auth
           kubectl rollout status deployment/one-piece-user-frontend -n app --timeout=180s
           kubectl rollout status deployment/one-piece-user-service -n app --timeout=180s
+          kubectl rollout status deployment/one-piece-content-service -n app --timeout=180s
           kubectl rollout status statefulset/keycloak -n auth --timeout=180s
 
       - name: Diagnostica (solo se un passo precedente è fallito)
