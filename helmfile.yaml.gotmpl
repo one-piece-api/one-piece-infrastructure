@@ -39,6 +39,8 @@ environments:
         userServiceImagePullPolicy: ""
         userFrontendImage: ""
         userFrontendImagePullPolicy: ""
+        contentServiceImage: ""
+        contentServiceImagePullPolicy: ""
         keycloakImageRepository: ""
         keycloakImageTag: ""
         keycloakImagePullPolicy: ""
@@ -50,6 +52,8 @@ environments:
         userServiceImagePullPolicy: Always
         userFrontendImage: ghcr.io/one-piece-api/user-frontend:latest
         userFrontendImagePullPolicy: Always
+        contentServiceImage: ghcr.io/one-piece-api/content-service:latest
+        contentServiceImagePullPolicy: Always
         # Tema custom (docs/adr/0010-custom-keycloak-theme.md), stessa
         # origine GHCR delle altre immagini applicative.
         keycloakImageRepository: ghcr.io/one-piece-api/keycloak-theme
@@ -75,6 +79,8 @@ environments:
         userServiceImagePullPolicy: Always
         userFrontendImage: ghcr.io/one-piece-api/user-frontend:latest
         userFrontendImagePullPolicy: Always
+        contentServiceImage: ghcr.io/one-piece-api/content-service:latest
+        contentServiceImagePullPolicy: Always
         keycloakImageRepository: ghcr.io/one-piece-api/keycloak-theme
         keycloakImageTag: latest
         keycloakImagePullPolicy: Always
@@ -163,6 +169,31 @@ releases:
 {{ end }}
     timeout: 240
 
+  # Istanza Postgres dedicata al content-service, separata da app-postgresql
+  # (che resta solo di user-service) - vedi
+  # one-piece-api/docs/implementation-plan-content.md §2: stessa separazione
+  # per-servizio già adottata tra "auth" (Keycloak) e "app" (user-service),
+  # non un database/schema condiviso.
+  - name: content-postgresql
+    namespace: app
+    chart: ./helm/charts/postgresql
+    needs:
+      - app/app-namespace
+    values:
+      - namespace: app
+        component: content-service
+        name: one-piece-content-postgresql
+        database: content_service
+        username: content_service
+        secretName: one-piece-content-postgresql-credentials
+        password: "content-service-db-change-me-locally"
+{{ if eq .Environment.Name "remote" }}
+      - resources:
+          requests:
+            cpu: 50m
+{{ end }}
+    timeout: 240
+
   - name: user-service
     namespace: app
     chart: ./helm/charts/user-service
@@ -240,6 +271,37 @@ releases:
         command: "bash"
         args: ["scripts/build-and-load-local-image.sh", "one-piece-user-frontend"]
     timeout: 60
+
+  # Backend del workflow editoriale contenuti (one-piece-api/docs/implementation-plan-content.md
+  # Fase 0) - servizio separato da user-service, propria istanza Postgres
+  # (content-postgresql sopra), nessuna dipendenza da Keycloak Admin API
+  # (solo resource server: valida gli stessi token di user-service, nessun
+  # secret/client Keycloak dedicato necessario).
+  - name: content-service
+    namespace: app
+    chart: ./helm/charts/content-service
+    needs:
+      - app/app-namespace
+      - app/content-postgresql
+    values:
+      - image: '{{ .Values.contentServiceImage | default "one-piece-content-service:local" }}'
+        imagePullPolicy: '{{ .Values.contentServiceImagePullPolicy | default "IfNotPresent" }}'
+        imagePullSecrets:
+          {{ .Values.imagePullSecrets | toYaml | nindent 10 }}
+{{ if eq .Environment.Name "remote" }}
+        jwtIssuerUri: 'http://{{ env "OCI_LB_IP" | default "localhost:8080" }}/realms/onepiece'
+{{ end }}
+    hooks:
+      - events: ["presync"]
+        command: "bash"
+        args: ["scripts/create-ghcr-pull-secret.sh"]
+      # Ambiente "default": builda e carica one-piece-content-service:local
+      # nel cluster kind (repo sibling one-piece-content-service). No-op in
+      # "ci" — vedi scripts/build-and-load-local-image.sh.
+      - events: ["presync"]
+        command: "bash"
+        args: ["scripts/build-and-load-local-image.sh", "one-piece-content-service"]
+    timeout: 120
 
   - name: keycloak
     namespace: auth
@@ -367,6 +429,7 @@ releases:
       - auth/redis
       - app/user-service
       - app/user-frontend
+      - app/content-service
     values:
       - oauth2-proxy/values-oauth2-proxy.yaml
 {{ if eq .Environment.Name "remote" }}

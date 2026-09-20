@@ -1,0 +1,10 @@
+apiVersion: v2
+name: content-service
+description: >
+  Backend applicativo (Spring Boot, repo one-piece-api/one-piece-content-service)
+  per il workflow editoriale dei contenuti. Micro-chart locale, immagine
+  costruita e caricata nel cluster kind (nessun registry ancora), sotto
+  l'orchestrazione dichiarativa di Helmfile. Stesso pattern del chart
+  "user-service".
+type: application
+version: 0.1.0

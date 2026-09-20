@@ -1,0 +1,30 @@
+namespace: app
+component: content-service
+name: one-piece-content-service
+image: one-piece-content-service:local
+imagePullPolicy: IfNotPresent
+imagePullSecrets: []
+port: 8080
+
+# This service's own Postgres instance (docs/implementation-plan-content.md §2 -
+# dedicated, separate from app-postgresql/user_service), secret created by the
+# helm/charts/postgresql release "content-postgresql" itself, same pattern as
+# user-service's appPostgresql value.
+contentPostgresql:
+  secretName: one-piece-content-postgresql-credentials
+  secretKey: password
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Overrides application.properties' spring.security.oauth2.resourceserver.jwt.issuer-uri
+# via the Spring-standard env var - same override user-service's chart makes for the
+# "remote" environment (the token's "iss" claim reflects Keycloak's configured public
+# hostname, not "localhost"). Empty (default): keep the application's own value,
+# unchanged for local/CI.
+jwtIssuerUri: ""
