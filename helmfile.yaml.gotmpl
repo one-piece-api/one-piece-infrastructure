@@ -401,6 +401,12 @@ releases:
       - events: ["postsync"]
         command: "bash"
         args: ["scripts/configure-role-catalog-permissions.sh"]
+      # Catalogo permessi del dominio contenuti (content:read/write/review/publish,
+      # ruolo PUBLISHER) - vedi il commento in testa allo script per cosa provisiona
+      # e perché (stesso principio del hook sopra, per un dominio diverso).
+      - events: ["postsync"]
+        command: "bash"
+        args: ["scripts/configure-content-permissions.sh"]
 
   - name: redis
     namespace: auth
