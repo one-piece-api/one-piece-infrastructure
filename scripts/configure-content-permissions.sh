@@ -11,13 +11,15 @@
 # configure-role-catalog-permissions.sh, agganciato subito dopo come hook
 # postsync della release "keycloak".
 #
-# Crea, se mancanti: i 4 permessi content:read/write/review/publish sul
-# client onepiece-proxy, il ruolo realm PUBLISHER; assegna a EDITOR
-# content:read+content:write, a REVIEWER content:read+content:review, a
-# PUBLISHER content:read+content:publish - il mapping di default del
-# documento dei flussi. Non assegna il ruolo PUBLISHER (né EDITOR/REVIEWER)
-# a nessun utente: chi lo detiene resta una decisione presa dall'app
-# (invito/gestione ruoli), non da questo script.
+# Crea, se mancanti: i 4 permessi content:read/write/review/publish più
+# languages:manage (Step 10, catalogo lingue) sul client onepiece-proxy, il
+# ruolo realm PUBLISHER; assegna a EDITOR content:read+content:write, a
+# REVIEWER content:read+content:review, a PUBLISHER content:read+
+# content:publish, ad ADMIN languages:manage - il mapping di default del
+# documento dei flussi (§2.1: il catalogo lingue è responsabilità ADMIN, non
+# editoriale). Non assegna il ruolo PUBLISHER (né EDITOR/REVIEWER) a nessun
+# utente: chi lo detiene resta una decisione presa dall'app (invito/gestione
+# ruoli), non da questo script.
 
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
@@ -42,6 +44,7 @@ kubectl exec -n auth statefulset/keycloak -- bash -c '
   ensure_permission "content:write" "Create/edit an own draft, submit for review, withdraw, delete a never-published draft"
   ensure_permission "content:review" "Claim/release a review, approve or reject a claimed one"
   ensure_permission "content:publish" "Publish a reviewed candidate, roll back, retire, view version history"
+  ensure_permission "languages:manage" "Manage the ADMIN-owned language catalog (add/remove supported languages)"
 
   existing_roles=$(/opt/keycloak/bin/kcadm.sh get roles -r onepiece --fields name --format csv --noquotes)
   if ! printf "%s\n" "$existing_roles" | grep -qx "PUBLISHER"; then
@@ -62,6 +65,7 @@ kubectl exec -n auth statefulset/keycloak -- bash -c '
   grant REVIEWER content:review
   grant PUBLISHER content:read
   grant PUBLISHER content:publish
+  grant ADMIN languages:manage
 ' -- "$kc_admin_password"
 
-echo "[configure-content-permissions] fatto: permessi content:* e ruolo PUBLISHER provisionati."
+echo "[configure-content-permissions] fatto: permessi content:*/languages:manage e ruolo PUBLISHER provisionati."
