@@ -31,10 +31,10 @@ spec:
               containerPort: {{ .Values.port }}
           env:
             # Selects application-dev.properties (see one-piece-user-service):
-            # cluster-internal DNS for Keycloak and app-postgresql, both
+            # cluster-internal DNS for Keycloak and the shared PostgreSQL instance, both
             # secrets injected below instead of hardcoded. Keycloak remains
             # the sole identity store (§2 of application-user-identity-management.md);
-            # app-postgresql only backs the audit_log table (Step 4, §13).
+            # the user_service database only backs the audit_log table (Step 4, §13).
             - name: SPRING_PROFILES_ACTIVE
               value: dev
             {{- if .Values.invitationTokenLifespan }}
@@ -65,8 +65,8 @@ spec:
             - name: APP_POSTGRESQL_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.appPostgresql.secretName }}
-                  key: {{ .Values.appPostgresql.secretKey }}
+                  name: {{ .Values.datasource.secretName }}
+                  key: {{ .Values.datasource.secretKey }}
           readinessProbe:
             httpGet:
               path: /api/actuator/health/readiness

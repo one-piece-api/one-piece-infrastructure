@@ -1,25 +1,34 @@
-# Defaults preserve the original Keycloak-only manifest exactly, so the
-# existing "auth" postgresql release needs no values override. A second
-# instance (the application database) reuses this chart with overridden
-# values in helmfile.yaml, instead of duplicating this manifest.
-namespace: auth
-component: identity-provider
+# Istanza PostgreSQL unica e condivisa (ADR-0016): un database e un ruolo
+# proprietario per ciascun servizio, dichiarati in "databases" (helmfile),
+# non un'istanza per servizio.
+namespace: data
+component: database
 name: one-piece-postgresql
 # Registry esplicito: CRI-O (runtime dei nodi OKE) rifiuta un nome immagine
 # non qualificato ("short name mode is enforcing") - containerd (kind) non
 # ha questa restrizione, da cui il funzionamento in locale/CI nonostante il
 # nome breve fosse sufficiente lì.
 image: docker.io/library/postgres:18.6
-database: keycloak
-username: keycloak
-secretName: one-piece-postgresql-credentials
-# Local-dev placeholder only — never a real credential. See ADR-0001.
-password: "keycloak-db-change-me-locally"
+
+# Superuser "postgres": usato solo dall'istanza stessa e dal Job di
+# bootstrap, mai da un servizio applicativo.
+admin:
+  secretName: one-piece-postgresql-admin-credentials
+  # Local-dev placeholder only — never a real credential. See ADR-0001.
+  password: "postgres-admin-change-me-locally"
+
+# Un elemento per servizio:
+#   database/username - database e ruolo proprietario creati dal Job di bootstrap
+#   password          - placeholder di sviluppo locale (ADR-0001)
+#   secretNamespace   - namespace del servizio consumatore
+#   secretName        - Secret (chiave "password") letto dal servizio consumatore
+databases: []
+
 storage: 2Gi
 resources:
   requests:
     cpu: 100m
-    memory: 256Mi
+    memory: 384Mi
   limits:
     cpu: 500m
-    memory: 512Mi
+    memory: 1Gi

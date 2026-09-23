@@ -13,12 +13,13 @@ keycloakAdmin:
   secretName: one-piece-user-service-admin-credentials
   secretKey: client-secret
 
-# The audit_log datasource (Step 4, §13) - secret created by the
-# helm/charts/postgresql release "app-postgresql" itself, same pattern as
-# keycloakAdmin above. Host/database/username are hardcoded in
-# application-dev.properties, identical for every deployment.
-appPostgresql:
-  secretName: one-piece-app-postgresql-credentials
+# The audit_log datasource (Step 4, §13) - database user_service in the shared
+# PostgreSQL instance (ADR-0016), secret created in this namespace by the
+# helm/charts/postgresql release itself, same pattern as keycloakAdmin above.
+# Host/database/username are hardcoded in application-dev.properties,
+# identical for every deployment.
+datasource:
+  secretName: one-piece-user-service-db-credentials
   secretKey: password
 
 resources:

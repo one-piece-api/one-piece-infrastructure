@@ -1,14 +1,14 @@
 apiVersion: v1
 kind: Secret
 metadata:
-  name: {{ .Values.secretName }}
+  name: {{ .Values.admin.secretName }}
   namespace: {{ .Values.namespace }}
   labels:
     project: onepiece-api
     component: {{ .Values.component }}
 type: Opaque
 stringData:
-  password: {{ .Values.password | quote }}
+  password: {{ .Values.admin.password | quote }}
 ---
 apiVersion: v1
 kind: Service
@@ -55,14 +55,10 @@ spec:
             - name: postgresql
               containerPort: 5432
           env:
-            - name: POSTGRES_DB
-              value: {{ .Values.database | quote }}
-            - name: POSTGRES_USER
-              value: {{ .Values.username | quote }}
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secretName }}
+                  name: {{ .Values.admin.secretName }}
                   key: password
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
@@ -71,12 +67,12 @@ spec:
               mountPath: /var/lib/postgresql/data
           readinessProbe:
             exec:
-              command: ["pg_isready", "-U", {{ .Values.username | quote }}, "-d", {{ .Values.database | quote }}]
+              command: ["pg_isready", "-U", "postgres"]
             initialDelaySeconds: 5
             periodSeconds: 5
           livenessProbe:
             exec:
-              command: ["pg_isready", "-U", {{ .Values.username | quote }}, "-d", {{ .Values.database | quote }}]
+              command: ["pg_isready", "-U", "postgres"]
             initialDelaySeconds: 15
             periodSeconds: 10
           resources:

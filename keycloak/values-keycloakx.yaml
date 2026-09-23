@@ -84,9 +84,9 @@ resources:
 
 database:
   vendor: postgres
-  hostname: one-piece-postgresql.auth.svc.cluster.local
+  hostname: one-piece-postgresql.data.svc.cluster.local
   port: 5432
   database: keycloak
   username: keycloak
-  existingSecret: one-piece-postgresql-credentials
+  existingSecret: one-piece-keycloak-db-credentials
   existingSecretKey: password

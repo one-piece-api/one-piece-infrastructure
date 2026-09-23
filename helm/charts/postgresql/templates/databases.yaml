@@ -1,0 +1,129 @@
+{{- /*
+Un database + un ruolo proprietario per ciascun servizio (ADR-0016).
+Creati da un Job idempotente eseguito a ogni install/upgrade, non dagli
+script /docker-entrypoint-initdb.d dell'immagine: quelli girano solo su un
+volume vuoto, quindi un database aggiunto in seguito non verrebbe mai creato
+su un'istanza già esistente.
+*/ -}}
+{{- range .Values.databases }}
+---
+# Letto dal servizio consumatore, nel suo namespace (un secretKeyRef non
+# attraversa i namespace).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .secretName }}
+  namespace: {{ .secretNamespace }}
+  labels:
+    project: onepiece-api
+    component: {{ $.Values.component }}
+type: Opaque
+stringData:
+  password: {{ .password | quote }}
+{{- end }}
+---
+# Le stesse password, lette dal Job di bootstrap nel namespace dell'istanza.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Values.name }}-role-credentials
+  namespace: {{ .Values.namespace }}
+  labels:
+    project: onepiece-api
+    component: {{ .Values.component }}
+type: Opaque
+stringData:
+{{- range .Values.databases }}
+  {{ .username }}: {{ .password | quote }}
+{{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.name }}-bootstrap
+  namespace: {{ .Values.namespace }}
+  labels:
+    project: onepiece-api
+    component: {{ .Values.component }}
+data:
+  # Idempotente: crea ruolo/database solo se assenti, riallinea sempre la
+  # password e toglie a PUBLIC l'accesso a ogni database, così ciascun
+  # servizio si collega solo al proprio.
+  bootstrap.sql: |
+{{- range .Values.databases }}
+    SELECT format('CREATE ROLE %I LOGIN', '{{ .username }}')
+      WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '{{ .username }}')\gexec
+    ALTER ROLE "{{ .username }}" WITH LOGIN PASSWORD :'{{ .username }}_password';
+    SELECT format('CREATE DATABASE %I OWNER %I', '{{ .database }}', '{{ .username }}')
+      WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '{{ .database }}')\gexec
+    REVOKE ALL ON DATABASE "{{ .database }}" FROM PUBLIC;
+{{- end }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Values.name }}-bootstrap
+  namespace: {{ .Values.namespace }}
+  labels:
+    project: onepiece-api
+    component: {{ .Values.component }}
+  annotations:
+    # Dopo che l'istanza è pronta (Helm attende le risorse prima degli hook
+    # post-*), prima che la release risulti completata: i servizi che la
+    # dichiarano in "needs:" trovano già il proprio database.
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 6
+  template:
+    metadata:
+      labels:
+        project: onepiece-api
+        component: {{ .Values.component }}
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: bootstrap
+          image: {{ .Values.image }}
+          env:
+            - name: PGHOST
+              value: {{ .Values.name }}.{{ .Values.namespace }}.svc.cluster.local
+            - name: PGUSER
+              value: postgres
+            - name: PGDATABASE
+              value: postgres
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.admin.secretName }}
+                  key: password
+{{- range .Values.databases }}
+            - name: {{ .username | upper }}_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.name }}-role-credentials
+                  key: {{ .username }}
+{{- end }}
+          command:
+            - sh
+            - -c
+            - >-
+              psql -v ON_ERROR_STOP=1
+{{- range .Values.databases }}
+              -v {{ .username }}_password="${{ .username | upper }}_PASSWORD"
+{{- end }}
+              -f /bootstrap/bootstrap.sql
+          volumeMounts:
+            - name: bootstrap
+              mountPath: /bootstrap
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+      volumes:
+        - name: bootstrap
+          configMap:
+            name: {{ .Values.name }}-bootstrap

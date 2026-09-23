@@ -1,12 +1,12 @@
 apiVersion: v2
 name: postgresql
 description: >
-  PostgreSQL a istanza singola — immagine ufficiale
-  (docker.io/library/postgres), non un chart Helm reale: un'istanza locale
+  PostgreSQL a istanza singola condivisa — immagine ufficiale
+  (docker.io/library/postgres), non un chart Helm reale: un'istanza dev
   non giustifica un Operator o un chart dedicato (vedi
-  docs/adr/0001-local-auth-stack.md). Micro-chart locale parametrico
-  (namespace/database/credentials in values.yaml), riusato per ogni
-  istanza (Keycloak, applicativa, ...) sotto l'orchestrazione dichiarativa
-  di Helmfile (vedi docs/adr/0002-helmfile-orchestration.md).
+  docs/adr/0001-local-auth-stack.md). Ospita un database + un ruolo
+  proprietario per ciascun servizio (Keycloak, user-service,
+  content-service, ...), dichiarati in values.yaml e creati da un Job
+  idempotente - vedi docs/adr/0016-single-shared-postgresql-instance.md.
 type: application
-version: 0.1.0
+version: 0.2.0

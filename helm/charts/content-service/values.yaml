@@ -6,12 +6,12 @@ imagePullPolicy: IfNotPresent
 imagePullSecrets: []
 port: 8080
 
-# This service's own Postgres instance (docs/implementation-plan-content.md §2 -
-# dedicated, separate from app-postgresql/user_service), secret created by the
-# helm/charts/postgresql release "content-postgresql" itself, same pattern as
-# user-service's appPostgresql value.
-contentPostgresql:
-  secretName: one-piece-content-postgresql-credentials
+# This service's own database content_service in the shared PostgreSQL
+# instance (ADR-0016), secret created in this namespace by the
+# helm/charts/postgresql release itself, same pattern as user-service's
+# datasource value.
+datasource:
+  secretName: one-piece-content-service-db-credentials
   secretKey: password
 
 resources:

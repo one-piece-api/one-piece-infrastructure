@@ -103,23 +103,6 @@ releases:
     chart: ./helm/charts/namespace
     timeout: 30
 
-  - name: postgresql
-    namespace: auth
-    chart: ./helm/charts/postgresql
-    needs:
-      - auth/namespace
-{{ if eq .Environment.Name "remote" }}
-    values:
-      # Nodo Ampere A1 da 1 OCPU/6GB (ADR-0005): request più realistico per
-      # un DB dev a singolo utente, per lasciare margine a Keycloak.
-      - resources:
-          requests:
-            cpu: 50m
-{{ end }}
-    # Cold-pull immagine (~170s su rete locale lenta) + readiness, vedi
-    # docs/adr/0002-helmfile-orchestration.md.
-    timeout: 240
-
 {{ if eq .Environment.Name "ci" }}
   # Mock SMTP, solo per "ci": senza un dominio verificato su Resend,
   # l'account può consegnare solo al proprio indirizzo verificato, non agli
@@ -147,59 +130,62 @@ releases:
         component: application
     timeout: 30
 
-  - name: app-postgresql
-    namespace: app
+  # Namespace dei dati, separato sia da "auth" sia da "app": l'istanza
+  # PostgreSQL condivisa non appartiene a nessuno dei servizi che la usano.
+  - name: data-namespace
+    namespace: data
+    chart: ./helm/charts/namespace
+    values:
+      - name: data
+        component: database
+    timeout: 30
+
+  # Istanza PostgreSQL unica per tutti i servizi, un database + un ruolo
+  # proprietario ciascuno (ADR-0016): su OCI ogni volume costa almeno 50 GB
+  # della quota Always Free da 200 GB, un'istanza per servizio la sforava.
+  # I Secret delle credenziali nascono nel namespace di ciascun consumatore,
+  # da cui i needs sui namespace "auth" e "app".
+  - name: postgresql
+    namespace: data
     chart: ./helm/charts/postgresql
     needs:
+      - data/data-namespace
+      - auth/namespace
       - app/app-namespace
     values:
-      - namespace: app
-        component: application
-        name: one-piece-app-postgresql
-        database: user_service
-        username: user_service
-        secretName: one-piece-app-postgresql-credentials
-        password: "user-service-db-change-me-locally"
+      - databases:
+          - database: keycloak
+            username: keycloak
+            password: "keycloak-db-change-me-locally"
+            secretNamespace: auth
+            secretName: one-piece-keycloak-db-credentials
+          - database: user_service
+            username: user_service
+            password: "user-service-db-change-me-locally"
+            secretNamespace: app
+            secretName: one-piece-user-service-db-credentials
+          - database: content_service
+            username: content_service
+            password: "content-service-db-change-me-locally"
+            secretNamespace: app
+            secretName: one-piece-content-service-db-credentials
 {{ if eq .Environment.Name "remote" }}
-      # Nodo Ampere A1 da 1 OCPU/6GB (ADR-0005): request più realistico per
+      # Nodi Ampere A1 da 1 OCPU/6GB (ADR-0005): request più realistico per
       # un DB dev a singolo utente, per lasciare margine a Keycloak.
       - resources:
           requests:
             cpu: 50m
 {{ end }}
-    timeout: 240
-
-  # Istanza Postgres dedicata al content-service, separata da app-postgresql
-  # (che resta solo di user-service) - vedi
-  # one-piece-api/docs/implementation-plan-content.md §2: stessa separazione
-  # per-servizio già adottata tra "auth" (Keycloak) e "app" (user-service),
-  # non un database/schema condiviso.
-  - name: content-postgresql
-    namespace: app
-    chart: ./helm/charts/postgresql
-    needs:
-      - app/app-namespace
-    values:
-      - namespace: app
-        component: content-service
-        name: one-piece-content-postgresql
-        database: content_service
-        username: content_service
-        secretName: one-piece-content-postgresql-credentials
-        password: "content-service-db-change-me-locally"
-{{ if eq .Environment.Name "remote" }}
-      - resources:
-          requests:
-            cpu: 50m
-{{ end }}
-    timeout: 240
+    # Cold-pull immagine (~170s su rete locale lenta) + readiness + Job di
+    # bootstrap, vedi docs/adr/0002-helmfile-orchestration.md.
+    timeout: 300
 
   - name: user-service
     namespace: app
     chart: ./helm/charts/user-service
     needs:
       - app/app-namespace
-      - app/app-postgresql
+      - data/postgresql
     values:
       - image: '{{ .Values.userServiceImage | default "one-piece-user-service:local" }}'
         imagePullPolicy: '{{ .Values.userServiceImagePullPolicy | default "IfNotPresent" }}'
@@ -273,8 +259,8 @@ releases:
     timeout: 60
 
   # Backend del workflow editoriale contenuti (one-piece-api/docs/implementation-plan-content.md
-  # Fase 0) - servizio separato da user-service, propria istanza Postgres
-  # (content-postgresql sopra), nessuna dipendenza da Keycloak Admin API
+  # Fase 0) - servizio separato da user-service, con il proprio database
+  # nell'istanza condivisa (postgresql sopra), nessuna dipendenza da Keycloak Admin API
   # (solo resource server: valida gli stessi token di user-service, nessun
   # secret/client Keycloak dedicato necessario).
   - name: content-service
@@ -282,7 +268,7 @@ releases:
     chart: ./helm/charts/content-service
     needs:
       - app/app-namespace
-      - app/content-postgresql
+      - data/postgresql
     values:
       - image: '{{ .Values.contentServiceImage | default "one-piece-content-service:local" }}'
         imagePullPolicy: '{{ .Values.contentServiceImagePullPolicy | default "IfNotPresent" }}'
@@ -309,7 +295,7 @@ releases:
     version: 7.2.3
     needs:
       - auth/namespace
-      - auth/postgresql
+      - data/postgresql
 {{ if eq .Environment.Name "ci" }}
       - auth/mailpit
 {{ end }}

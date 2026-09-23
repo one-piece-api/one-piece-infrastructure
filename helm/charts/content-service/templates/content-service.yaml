@@ -31,7 +31,7 @@ spec:
               containerPort: {{ .Values.port }}
           env:
             # Selects application-dev.properties (see one-piece-content-service):
-            # cluster-internal DNS for Keycloak and content-postgresql, secret
+            # cluster-internal DNS for Keycloak and the shared PostgreSQL instance, secret
             # injected below instead of hardcoded.
             - name: SPRING_PROFILES_ACTIVE
               value: dev
@@ -42,8 +42,8 @@ spec:
             - name: CONTENT_POSTGRESQL_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.contentPostgresql.secretName }}
-                  key: {{ .Values.contentPostgresql.secretKey }}
+                  name: {{ .Values.datasource.secretName }}
+                  key: {{ .Values.datasource.secretKey }}
           readinessProbe:
             httpGet:
               path: /api/content/actuator/health/readiness

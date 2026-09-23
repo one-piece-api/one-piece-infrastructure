@@ -138,7 +138,7 @@ kubectl port-forward svc/oauth2-proxy  -n auth 4180:4180 &
 Per eseguire `user-service` fuori dal cluster (es. da IntelliJ, per debugging — profilo Spring `local`, vedi `application-local.properties` nel repo `one-piece-user-service`), oltre al port-forward di Keycloak sopra serve anche quello del suo datasource — il solo dato che il servizio persiste davvero, l'audit trail delle azioni admin (Step 4, §13 di `application-user-identity-management.md`; Keycloak resta l'unico identity store, vedi §2 dello stesso documento):
 
 ```bash
-kubectl port-forward svc/one-piece-app-postgresql -n app 5433:5432 &
+kubectl port-forward svc/one-piece-postgresql -n data 5433:5432 &
 ```
 
 ## Ambiente remoto (Oracle Cloud)
