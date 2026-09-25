@@ -103,6 +103,14 @@ extraArgs:
   # riflesso nella risposta) perché user-service lo valida come resource
   # server OAuth2 (vedi SecurityConfig nel repo one-piece-user-service).
   pass-authorization-header: "true"
+  # Lascia passare anche le richieste con un proprio "Authorization: Bearer <jwt>"
+  # invece del cookie di sessione - le collection Bruno nei repo dei servizi
+  # (client pubblico "bruno", PKCE). oauth2-proxy verifica comunque firma
+  # (oidc-jwks-url), issuer e audience ("onepiece-proxy", aggiunta da un mapper
+  # del client "bruno"), e il backend lo rivalida come resource server: nessun
+  # token non emesso da questo realm per questa app arriva agli upstream. Vedi
+  # docs/adr/0017-bearer-tokens-through-oauth2-proxy.md.
+  skip-jwt-bearer-tokens: "true"
   # set-xauthrequest/pass-access-token sono deliberatamente OFF (il default):
   # con set-xauthrequest attivo, oauth2-proxy ripete X-Auth-Request-User/
   # -Email/-Access-Token anche come header della RISPOSTA al browser — cioè
