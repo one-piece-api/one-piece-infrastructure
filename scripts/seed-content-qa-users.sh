@@ -12,18 +12,14 @@
 # realm dichiarativo: lo crea configure-content-permissions.sh, che gira subito
 # prima come hook postsync della release "keycloak".
 #
-# Solo in "default" (locale) e "ci": password note e committate non devono
-# arrivare su un ambiente raggiungibile da Internet. Idempotente: un utente
-# già presente non viene toccato (nemmeno la password), i ruoli mancanti
-# vengono aggiunti.
+# In ogni ambiente, "remote" incluso: è un ambiente di sviluppo, non di
+# produzione, con gli stessi utenti a password nota di realm-onepiece.json.
+# Da rivedere, insieme a quelli, quando nascerà un ambiente di produzione.
+# Idempotente: un utente già presente non viene toccato (nemmeno la
+# password), i ruoli mancanti vengono aggiunti.
 
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
-
-if [ "${HELMFILE_ENVIRONMENT:-default}" = "remote" ]; then
-  echo "[seed-content-qa-users] HELMFILE_ENVIRONMENT=remote, salto (nessun account con password nota fuori da locale/ci)."
-  exit 0
-fi
 
 # Placeholder locale (KC_BOOTSTRAP_ADMIN_PASSWORD in keycloak/values-keycloakx.yaml),
 # non un segreto reale - stesso pattern di configure-content-permissions.sh.
