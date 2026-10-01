@@ -387,12 +387,18 @@ releases:
       - events: ["postsync"]
         command: "bash"
         args: ["scripts/configure-role-catalog-permissions.sh"]
-      # Catalogo permessi del dominio contenuti (content:read/write/review/publish,
+      # Catalogo permessi del dominio contenuti (content:*, languages:manage,
       # ruolo PUBLISHER) - vedi il commento in testa allo script per cosa provisiona
       # e perché (stesso principio del hook sopra, per un dominio diverso).
       - events: ["postsync"]
         command: "bash"
         args: ["scripts/configure-content-permissions.sh"]
+      # Account di prova per il workflow editoriale, dopo l'hook sopra perché
+      # usano il ruolo PUBLISHER che quello crea. No-op in "remote": password
+      # note solo dove l'ambiente non è raggiungibile da Internet.
+      - events: ["postsync"]
+        command: "bash"
+        args: ["scripts/seed-content-qa-users.sh"]
 
   - name: redis
     namespace: auth

@@ -11,15 +11,19 @@
 # configure-role-catalog-permissions.sh, agganciato subito dopo come hook
 # postsync della release "keycloak".
 #
-# Crea, se mancanti: i 4 permessi content:read/write/review/publish più
-# languages:manage (Step 10, catalogo lingue) sul client onepiece-proxy, il
-# ruolo realm PUBLISHER; assegna a EDITOR content:read+content:write, a
-# REVIEWER content:read+content:review, a PUBLISHER content:read+
-# content:publish, ad ADMIN languages:manage - il mapping di default del
-# documento dei flussi (§2.1: il catalogo lingue è responsabilità ADMIN, non
-# editoriale). Non assegna il ruolo PUBLISHER (né EDITOR/REVIEWER) a nessun
-# utente: chi lo detiene resta una decisione presa dall'app (invito/gestione
-# ruoli), non da questo script.
+# Crea, se mancanti, e riallinea la descrizione di: content:read, content:write,
+# content:review, content:publish, content:retire, content:admin e
+# languages:manage sul client onepiece-proxy; crea il ruolo realm PUBLISHER.
+# Applica il mapping di default del documento dei flussi:
+#   EDITOR    content:read, content:write
+#   REVIEWER  content:read, content:review
+#   PUBLISHER content:read, content:publish, content:retire
+#   ADMIN     tutti i content:*, content:admin incluso, e languages:manage
+# Aggiunge soltanto: un permesso tolto a mano da un ruolo dalla schermata
+# "Ruoli & permessi" viene riassegnato al deploy successivo, uno aggiunto a
+# mano resta. Non assegna ruoli a nessun utente: chi li detiene resta una
+# decisione presa dall'app (invito/gestione ruoli) - gli account di prova
+# sono in seed-content-qa-users.sh.
 
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
@@ -30,42 +34,49 @@ kc_admin_password="admin-change-me-locally"
 
 kubectl exec -n auth statefulset/keycloak -- bash -c '
   set -euo pipefail
-  /opt/keycloak/bin/kcadm.sh config credentials --server http://localhost:8080 --realm master --user admin --password "$1"
+  kcadm=/opt/keycloak/bin/kcadm.sh
+  $kcadm config credentials --server http://localhost:8080 --realm master --user admin --password "$1"
 
-  cid=$(/opt/keycloak/bin/kcadm.sh get clients -r onepiece -q clientId=onepiece-proxy --fields id --format csv --noquotes | tail -n1)
-  existing_perms=$(/opt/keycloak/bin/kcadm.sh get "clients/$cid/roles" -r onepiece --fields name --format csv --noquotes)
+  cid=$($kcadm get clients -r onepiece -q clientId=onepiece-proxy --fields id --format csv --noquotes | tail -n1)
+  existing_perms=$($kcadm get "clients/$cid/roles" -r onepiece --fields name --format csv --noquotes)
 
+  # Crea il permesso se manca; la descrizione viene sempre riallineata, così un
+  # cambio di significato (come il passaggio al modello a versioni) arriva anche
+  # su un realm già provisionato.
   ensure_permission() {
     if ! printf "%s\n" "$existing_perms" | grep -qx "$1"; then
-      /opt/keycloak/bin/kcadm.sh create "clients/$cid/roles" -r onepiece -s "name=$1" -s "description=$2"
+      $kcadm create "clients/$cid/roles" -r onepiece -s "name=$1" -s "description=$2"
+    else
+      $kcadm update "clients/$cid/roles/$1" -r onepiece -s "description=$2"
     fi
   }
-  ensure_permission "content:read" "View the encyclopedia (reviewed, published, retired content)"
-  ensure_permission "content:write" "Create/edit an own draft, submit for review, withdraw, delete a never-published draft"
-  ensure_permission "content:review" "Claim/release a review, approve or reject a claimed one"
-  ensure_permission "content:publish" "Publish a reviewed candidate, roll back, retire, view version history"
-  ensure_permission "languages:manage" "Manage the ADMIN-owned language catalog (add/remove supported languages)"
+  ensure_permission "content:read" "Browse content and version history, limited to the statuses visible to the caller"
+  ensure_permission "content:write" "See drafts, rejected and in-review versions; open a new version; edit, submit, pull back and delete an own draft"
+  ensure_permission "content:review" "See in-review versions; claim, release, approve or reject - never an own version"
+  ensure_permission "content:publish" "Publish, archive, recover from archive, restore an older version"
+  ensure_permission "content:retire" "Retire the published version"
+  ensure_permission "content:admin" "Override ownership, claims and the self-review ban; grants no action by itself"
+  ensure_permission "languages:manage" "Manage the language catalog (add/remove supported languages)"
 
-  existing_roles=$(/opt/keycloak/bin/kcadm.sh get roles -r onepiece --fields name --format csv --noquotes)
+  existing_roles=$($kcadm get roles -r onepiece --fields name --format csv --noquotes)
   if ! printf "%s\n" "$existing_roles" | grep -qx "PUBLISHER"; then
-    /opt/keycloak/bin/kcadm.sh create roles -r onepiece -s name=PUBLISHER -s "description=Publishes reviewed content, rolls back, retires"
+    $kcadm create roles -r onepiece -s name=PUBLISHER -s "description=Publishes, archives, retires and restores content"
   fi
 
   grant() {
-    local role="$1" perm="$2"
-    local held
-    held=$(/opt/keycloak/bin/kcadm.sh get-roles -r onepiece --rname "$role" --cclientid onepiece-proxy --fields name --format csv --noquotes)
-    if ! printf "%s\n" "$held" | grep -qx "$perm"; then
-      /opt/keycloak/bin/kcadm.sh add-roles -r onepiece --rname "$role" --cclientid onepiece-proxy --rolename "$perm"
-    fi
+    local role="$1" perm held
+    held=$($kcadm get-roles -r onepiece --rname "$role" --cclientid onepiece-proxy --fields name --format csv --noquotes)
+    shift
+    for perm in "$@"; do
+      if ! printf "%s\n" "$held" | grep -qx "$perm"; then
+        $kcadm add-roles -r onepiece --rname "$role" --cclientid onepiece-proxy --rolename "$perm"
+      fi
+    done
   }
-  grant EDITOR content:read
-  grant EDITOR content:write
-  grant REVIEWER content:read
-  grant REVIEWER content:review
-  grant PUBLISHER content:read
-  grant PUBLISHER content:publish
-  grant ADMIN languages:manage
+  grant EDITOR content:read content:write
+  grant REVIEWER content:read content:review
+  grant PUBLISHER content:read content:publish content:retire
+  grant ADMIN content:read content:write content:review content:publish content:retire content:admin languages:manage
 ' -- "$kc_admin_password"
 
 echo "[configure-content-permissions] fatto: permessi content:*/languages:manage e ruolo PUBLISHER provisionati."
