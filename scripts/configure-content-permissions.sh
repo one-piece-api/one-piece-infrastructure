@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Provisiona il catalogo permessi/ruoli del dominio contenuti
-# (one-piece-api/docs/user-flows/authentication-and-user-management.md §2.2,
-# §7.1/§7.7) sullo stesso registro dinamico già usato per users:*/roles:*/
+# (one-piece-api/docs/user-flows/content-editorial-workflow.md §2.2)
+# sullo stesso registro dinamico già usato per users:*/roles:*/
 # audit:* (ADR-0007/0012 di one-piece-user-service) - nessun edit a
 # realm-onepiece.json, stessa identica azione che si farebbe a mano dalla
 # schermata "Ruoli & permessi", solo automatizzata così ogni ambiente

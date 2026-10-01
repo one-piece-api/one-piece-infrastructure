@@ -21,7 +21,7 @@ config:
   # nel repo one-piece-content-service) è elencato PRIMA del catch-all
   # "/api/" di user-service: oauth2-proxy instrada per prefisso più
   # specifico, ma l'ordine esplicito evita qualunque ambiguità - vedi
-  # one-piece-api/docs/implementation-plan-content.md Fase 0.4.
+  # one-piece-api/docs/implementation-plan-content.md §2.
   upstreams:
     - "http://one-piece-user-frontend.app.svc.cluster.local/"
     - "http://one-piece-content-service.app.svc.cluster.local/api/content/"
@@ -122,7 +122,7 @@ extraArgs:
   pass-basic-auth: "false"
   http-address: "0.0.0.0:4180"
   # L'health check dei backend resta l'unico percorso pubblico (i probe
-  # Kubernetes non possono autenticarsi) - user-service e, da Fase 0 di
-  # docs/implementation-plan-content.md, content-service. Tutto il resto,
+  # Kubernetes non possono autenticarsi) - user-service e content-service
+  # (docs/implementation-plan-content.md §2). Tutto il resto,
   # incluso /api/me e /api/content/**, resta dietro login.
   skip-auth-route: "GET=^/api/(content/)?actuator/health"
