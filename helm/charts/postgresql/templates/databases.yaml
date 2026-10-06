@@ -5,7 +5,12 @@ script /docker-entrypoint-initdb.d dell'immagine: quelli girano solo su un
 volume vuoto, quindi un database aggiunto in seguito non verrebbe mai creato
 su un'istanza già esistente.
 */ -}}
-{{- range .Values.databases }}
+{{- /*
+Proprietari ("databases") e lettori ("readers", ADR-0018): ogni ruolo ha
+password e Secret propri.
+*/ -}}
+{{- $roles := concat .Values.databases .Values.readers }}
+{{- range $roles }}
 ---
 # Letto dal servizio consumatore, nel suo namespace (un secretKeyRef non
 # attraversa i namespace).
@@ -33,7 +38,7 @@ metadata:
     component: {{ .Values.component }}
 type: Opaque
 stringData:
-{{- range .Values.databases }}
+{{- range $roles }}
   {{ .username }}: {{ .password | quote }}
 {{- end }}
 ---
@@ -57,6 +62,19 @@ data:
     SELECT format('CREATE DATABASE %I OWNER %I', '{{ .database }}', '{{ .username }}')
       WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '{{ .database }}')\gexec
     REVOKE ALL ON DATABASE "{{ .database }}" FROM PUBLIC;
+{{- end }}
+    -- Ruoli lettori (ADR-0018): solo login e CONNECT sul database. I permessi
+    -- su schema e viste li concede la migrazione del servizio proprietario,
+    -- che quindi trova il ruolo già creato. Tetto a connessioni e durata
+    -- delle query; sola lettura anche se un GRANT di troppo lo permettesse.
+{{- range .Values.readers }}
+    SELECT format('CREATE ROLE %I LOGIN', '{{ .username }}')
+      WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '{{ .username }}')\gexec
+    ALTER ROLE "{{ .username }}" WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE
+      CONNECTION LIMIT {{ .connectionLimit }} PASSWORD :'{{ .username }}_password';
+    ALTER ROLE "{{ .username }}" SET statement_timeout = {{ .statementTimeout | squote }};
+    ALTER ROLE "{{ .username }}" SET default_transaction_read_only = on;
+    GRANT CONNECT ON DATABASE "{{ .database }}" TO "{{ .username }}";
 {{- end }}
 ---
 apiVersion: batch/v1
@@ -97,7 +115,7 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.admin.secretName }}
                   key: password
-{{- range .Values.databases }}
+{{- range $roles }}
             - name: {{ .username | upper }}_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -109,7 +127,7 @@ spec:
             - -c
             - >-
               psql -v ON_ERROR_STOP=1
-{{- range .Values.databases }}
+{{- range $roles }}
               -v {{ .username }}_password="${{ .username | upper }}_PASSWORD"
 {{- end }}
               -f /bootstrap/bootstrap.sql

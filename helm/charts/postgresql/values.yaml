@@ -24,6 +24,14 @@ admin:
 #   secretName        - Secret (chiave "password") letto dal servizio consumatore
 databases: []
 
+# Ruoli che leggono il database di un altro servizio (ADR-0018), creati
+# dopo i database:
+#   username/password                 - ruolo e placeholder locale (ADR-0001)
+#   database                          - unico database su cui ha CONNECT
+#   connectionLimit/statementTimeout  - tetto alle connessioni e alla durata di una query
+#   secretNamespace/secretName        - come in "databases"
+readers: []
+
 storage: 2Gi
 resources:
   requests:

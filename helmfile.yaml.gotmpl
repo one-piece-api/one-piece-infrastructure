@@ -169,6 +169,18 @@ releases:
             password: "content-service-db-change-me-locally"
             secretNamespace: app
             secretName: one-piece-content-service-db-credentials
+        # API pubblica: legge solo lo schema "published" di content_service
+        # (ADR-0018). Il ruolo deve esistere prima delle migrazioni di
+        # content-service, che gli concedono i permessi: "needs" già lo
+        # garantisce, il Job gira prima che la release risulti completata.
+        readers:
+          - username: public_api_reader
+            database: content_service
+            password: "public-api-reader-db-change-me-locally"
+            connectionLimit: 10
+            statementTimeout: 2s
+            secretNamespace: app
+            secretName: one-piece-public-api-db-credentials
 {{ if eq .Environment.Name "remote" }}
       # Nodi Ampere A1 da 1 OCPU/6GB (ADR-0005): request più realistico per
       # un DB dev a singolo utente, per lasciare margine a Keycloak.

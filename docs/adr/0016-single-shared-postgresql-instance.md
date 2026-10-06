@@ -67,3 +67,6 @@ Risultato su OKE: 2 boot + 1 volume = 150 GB, sotto la quota.
   `app/content-postgresql`) ed eliminarne i PVC: `helm uninstall` non
   cancella i PVC di uno StatefulSet, e su OKE il block volume resterebbe
   fatturato.
+
+- Eccezione: il ruolo di sola lettura `public_api_reader` si collega a
+  `content_service` (ADR-0018).
