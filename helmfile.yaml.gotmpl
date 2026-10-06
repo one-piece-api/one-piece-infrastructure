@@ -103,7 +103,7 @@ environments:
         # certificato e, dallo step I3, gli host app./auth./api.
         publicDomain: onepieceapi.dev
         # ClusterIssuer del certificato del dominio (ADR-0021).
-        certificateIssuer: letsencrypt-staging
+        certificateIssuer: letsencrypt-production
 
 ---
 # Una sola versione per chart di Envoy Gateway e CRD (hook presync della
@@ -661,7 +661,11 @@ releases:
     values:
       - domain: {{ .Values.publicDomain }}
         issuer: {{ .Values.certificateIssuer }}
-    timeout: 60
+    # --wait attende il certificato emesso: la prima emissione (o un cambio
+    # di issuer) con DNS-01 richiede la propagazione del record TXT, osservata
+    # oltre i 60s (2026-10-06). A regime i rinnovi avvengono in background,
+    # con il Secret esistente ancora valido: nessuna attesa.
+    timeout: 300
 {{ end }}
 
   - name: oauth2-proxy-route
