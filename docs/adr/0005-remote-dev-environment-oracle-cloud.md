@@ -45,6 +45,9 @@ backend.
 
 ### TLS/DNS: nessun dominio per ora
 
+> **Superata** (2026-10-06) da ADR-0020 (dominio e Cloudflare), ADR-0021 (HTTPS) e
+> ADR-0022 (indirizzi pubblici); ingress-nginx superato da ADR-0019.
+
 Accesso via IP pubblico in HTTP semplice. **Gap di sicurezza consapevole**:
 i flow OAuth2/OIDC e i cookie di sessione di oauth2-proxy assumono
 normalmente un contesto HTTPS (cookie `Secure`, redirect URI). Finché

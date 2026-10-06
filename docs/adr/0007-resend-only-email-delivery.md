@@ -63,7 +63,8 @@ eliminando completamente il mail-catcher locale.
   automaticamente da `scripts/lib/load-env-local.sh` - stesso principio di
   `oauth2-proxy/secret.local.yaml` per l'altro segreto locale del repo, vedi
   la sezione "Segreti locali" del README.
-- **Limite di importante rilievo pratico, accettato**: senza un dominio di
+- **Superato** (2026-10-06) da ADR-0023 (mittente su `mail.onepieceapi.dev`).
+  **Limite di importante rilievo pratico, accettato**: senza un dominio di
   invio verificato su Resend, l'account può inviare solo al proprio
   indirizzo email verificato - non a indirizzi arbitrari come quelli
   `@onepiece.local` usati dagli utenti seed (`realm-onepiece.json`) o
