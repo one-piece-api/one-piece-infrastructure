@@ -135,6 +135,13 @@ kubectl port-forward svc/oauth2-proxy  -n auth 4180:4180 &
 # consultano nella dashboard Resend (resend.com/emails), non più in locale
 ```
 
+L'API pubblica (`public-api`) non ha ancora una rotta sull'Ingress
+(`implementation-plan-public-api.md`, step P6): si raggiunge solo dall'interno del cluster.
+
+```bash
+kubectl port-forward svc/one-piece-public-api -n app 8083:80 &
+```
+
 Per eseguire `user-service`/`content-service` fuori dal cluster (es. da IntelliJ, per debugging — profilo Spring `local` di default in entrambi, vedi il rispettivo `README.md`/`application-local.properties`), oltre al port-forward di Keycloak sopra serve anche quello del datasource condiviso:
 
 ```bash

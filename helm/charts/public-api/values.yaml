@@ -1,0 +1,24 @@
+namespace: app
+component: public-api
+name: one-piece-public-api
+image: one-piece-public-api:local
+imagePullPolicy: IfNotPresent
+imagePullSecrets: []
+port: 8080
+# Actuator (probe) su una porta sua: la futura rotta pubblica raggiungerà solo
+# "port", mai questa - vedi ADR-0001 in one-piece-public-api.
+managementPort: 8081
+
+# Ruolo di sola lettura public_api_reader su content_service (ADR-0018): il
+# Secret nasce in questo namespace dalla release "postgresql".
+datasource:
+  secretName: one-piece-public-api-db-credentials
+  secretKey: password
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

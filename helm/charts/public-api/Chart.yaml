@@ -1,0 +1,9 @@
+apiVersion: v2
+name: public-api
+description: >
+  API pubblica in sola lettura sui contenuti pubblicati (Spring Boot, repo
+  one-piece-api/one-piece-public-api). Stesso pattern del chart
+  "content-service"; per ora solo interna al cluster: nessuna rotta
+  sull'Ingress (implementation-plan-public-api.md, step P2 e P6).
+type: application
+version: 0.1.0

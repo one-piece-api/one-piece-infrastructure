@@ -111,7 +111,7 @@ jobs:
           KUBECONFIG: ${{ github.workspace }}/kubeconfig
         run: helmfile --environment remote sync
 
-      # user-frontend/user-service/content-service/keycloak-theme usano il tag
+      # user-frontend/user-service/content-service/public-api/keycloak-theme usano il tag
       # mobile ":latest": un nuovo push su GHCR non cambia la stringa immagine
       # nello spec del workload, quindi "helm upgrade" non vede alcuna
       # differenza e non fa ripartire i pod, anche con
@@ -127,10 +127,12 @@ jobs:
           kubectl rollout restart deployment/one-piece-user-frontend -n app
           kubectl rollout restart deployment/one-piece-user-service -n app
           kubectl rollout restart deployment/one-piece-content-service -n app
+          kubectl rollout restart deployment/one-piece-public-api -n app
           kubectl rollout restart statefulset/keycloak -n auth
           kubectl rollout status deployment/one-piece-user-frontend -n app --timeout=180s
           kubectl rollout status deployment/one-piece-user-service -n app --timeout=180s
           kubectl rollout status deployment/one-piece-content-service -n app --timeout=180s
+          kubectl rollout status deployment/one-piece-public-api -n app --timeout=180s
           kubectl rollout status statefulset/keycloak -n auth --timeout=180s
 
       - name: Diagnostica (solo se un passo precedente è fallito)

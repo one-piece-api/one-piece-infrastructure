@@ -41,6 +41,8 @@ environments:
         userFrontendImagePullPolicy: ""
         contentServiceImage: ""
         contentServiceImagePullPolicy: ""
+        publicApiImage: ""
+        publicApiImagePullPolicy: ""
         keycloakImageRepository: ""
         keycloakImageTag: ""
         keycloakImagePullPolicy: ""
@@ -54,6 +56,8 @@ environments:
         userFrontendImagePullPolicy: Always
         contentServiceImage: ghcr.io/one-piece-api/content-service:latest
         contentServiceImagePullPolicy: Always
+        publicApiImage: ghcr.io/one-piece-api/public-api:latest
+        publicApiImagePullPolicy: Always
         # Tema custom (docs/adr/0010-custom-keycloak-theme.md), stessa
         # origine GHCR delle altre immagini applicative.
         keycloakImageRepository: ghcr.io/one-piece-api/keycloak-theme
@@ -81,6 +85,8 @@ environments:
         userFrontendImagePullPolicy: Always
         contentServiceImage: ghcr.io/one-piece-api/content-service:latest
         contentServiceImagePullPolicy: Always
+        publicApiImage: ghcr.io/one-piece-api/public-api:latest
+        publicApiImagePullPolicy: Always
         keycloakImageRepository: ghcr.io/one-piece-api/keycloak-theme
         keycloakImageTag: latest
         keycloakImagePullPolicy: Always
@@ -299,6 +305,41 @@ releases:
       - events: ["presync"]
         command: "bash"
         args: ["scripts/build-and-load-local-image.sh", "one-piece-content-service"]
+    timeout: 120
+
+  # API pubblica in sola lettura (one-piece-api/docs/implementation-plan-public-api.md):
+  # legge lo schema "published" di content_service come public_api_reader
+  # (ADR-0018). Dipende da content-service perché le viste e i grant nascono
+  # dalle sue migrazioni. Nessuna rotta sull'Ingress finché non c'è il
+  # percorso pubblico (step P6).
+  - name: public-api
+    namespace: app
+    chart: ./helm/charts/public-api
+    needs:
+      - app/app-namespace
+      - data/postgresql
+      - app/content-service
+    values:
+      - image: '{{ .Values.publicApiImage | default "one-piece-public-api:local" }}'
+        imagePullPolicy: '{{ .Values.publicApiImagePullPolicy | default "IfNotPresent" }}'
+        imagePullSecrets:
+          {{ .Values.imagePullSecrets | toYaml | nindent 10 }}
+{{ if eq .Environment.Name "remote" }}
+      # Nodo Ampere A1 da 1 OCPU/6GB (ADR-0005): nessun traffico pubblico
+      # ancora, request minima per lasciare margine agli altri pod.
+      - resources:
+          requests:
+            cpu: 30m
+{{ end }}
+    hooks:
+      - events: ["presync"]
+        command: "bash"
+        args: ["scripts/create-ghcr-pull-secret.sh"]
+      # Ambiente "default": builda e carica one-piece-public-api:local nel
+      # cluster kind (repo sibling one-piece-public-api). No-op in "ci".
+      - events: ["presync"]
+        command: "bash"
+        args: ["scripts/build-and-load-local-image.sh", "one-piece-public-api"]
     timeout: 120
 
   - name: keycloak
