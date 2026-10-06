@@ -34,7 +34,7 @@ output "lb_ip" {
 
 output "subnet_id" {
   value = oci_core_subnet.public.id
-  # Necessario per il Service LoadBalancer di ingress-nginx: con la
+  # Necessario per il Service LoadBalancer del proxy Envoy (ADR-0019): con la
   # topologia a subnet unica (network.tf) il cloud-controller-manager OCI
   # non riesce a dedurla da sé ("a subnet must be specified") - va passata
   # esplicitamente via l'annotazione oci-load-balancer-subnet1, vedi

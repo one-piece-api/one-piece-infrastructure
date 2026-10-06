@@ -1,0 +1,9 @@
+apiVersion: v2
+name: gateway
+description: >
+  Punto di ingresso unico del cluster con la Gateway API (ADR-0019):
+  GatewayClass gestita da Envoy Gateway, configurazione del proxy Envoy
+  (EnvoyProxy: Service LoadBalancer e risorse) e Gateway con un listener
+  HTTP. Le rotte vivono accanto ai servizi che servono (chart http-route).
+type: application
+version: 0.1.0

@@ -21,8 +21,15 @@ repositories:
     url: https://codecentric.github.io/helm-charts
   - name: oauth2-proxy
     url: https://oauth2-proxy.github.io/manifests
+  # Solo per disinstallare la release "ingress-nginx" (installed: false
+  # sotto) - da rimuovere insieme a quella release, step I2.
   - name: ingress-nginx
     url: https://kubernetes.github.io/ingress-nginx
+  # Chart di Envoy Gateway, pubblicati come artefatti OCI su Docker Hub
+  # (ADR-0019).
+  - name: envoyproxy
+    url: docker.io/envoyproxy
+    oci: true
 
 # Due ambienti: "default" (sviluppo locale, invariato) e "ci" (CI di questo
 # repo, vedi .github/workflows/test-infrastructure.yml). In locale
@@ -95,6 +102,10 @@ environments:
         invitationTokenLifespan: ""
 
 ---
+# Una sola versione per chart di Envoy Gateway e CRD (hook presync della
+# release "envoy-gateway"): devono restare allineate, ADR-0019.
+{{ $envoyGatewayVersion := "v1.9.2" }}
+
 helmDefaults:
   wait: true
   # Sempre innocuo (namespace "auth" già esistente dopo il primo sync): ma
@@ -502,71 +513,93 @@ releases:
         command: "bash"
         args: ["scripts/generate-oauth2-proxy-secret.sh"]
 
-  # Ingress pubblico (ADR-0005): solo nell'ambiente "remote" ha senso un
-  # Load Balancer reale, ma la release resta definita per tutti gli
-  # ambienti per semplicità - in "default"/"ci" resta semplicemente inutilizzata
-  # (nessun accesso via kubectl port-forward ne viene impattato).
-  - name: ingress-namespace
-    namespace: ingress-nginx
+  # Ingresso pubblico (ADR-0019): Gateway API con Envoy Gateway, al posto di
+  # ingress-nginx (dismesso da Kubernetes a marzo 2026). Come prima, il
+  # Load Balancer reale ha senso solo in "remote", ma le release restano
+  # definite per tutti gli ambienti: in "default"/"ci" il Service resta
+  # <pending> e l'accesso continua via kubectl port-forward.
+  - name: gateway-namespace
+    namespace: envoy-gateway-system
     chart: ./helm/charts/namespace
     values:
-      - name: ingress-nginx
+      - name: envoy-gateway-system
         component: ingress
     timeout: 30
 
-  - name: ingress-nginx
-    namespace: ingress-nginx
-    chart: ingress-nginx/ingress-nginx
-    version: 4.15.1
+  # Controller di Envoy Gateway: legge Gateway/HTTPRoute e crea il proxy
+  # Envoy (Deployment + Service LoadBalancer) descritto dalla release
+  # "gateway" sotto.
+  - name: envoy-gateway
+    namespace: envoy-gateway-system
+    chart: envoyproxy/gateway-helm
+    version: {{ $envoyGatewayVersion }}
     needs:
-      - ingress-nginx/ingress-namespace
+      - envoy-gateway-system/gateway-namespace
     values:
-      - controller:
-          service:
-            annotations:
-              # Always Free: un solo Flexible Load Balancer per tenancy,
-              # banda 10 Mbps fissa (min = max) - un max diverso da 10
-              # provisiona un LB a pagamento. Vedi docs/adr/0005.
-              service.beta.kubernetes.io/oci-load-balancer-shape: "flexible"
-              service.beta.kubernetes.io/oci-load-balancer-shape-flex-min: "10"
-              service.beta.kubernetes.io/oci-load-balancer-shape-flex-max: "10"
-              # Con la topologia a subnet unica (network.tf) il
-              # cloud-controller-manager OCI non riesce a dedurla da sé
-              # ("a subnet must be specified") - va data esplicitamente.
-              # Valore: terraform output -raw subnet_id (terraform/).
-              service.beta.kubernetes.io/oci-load-balancer-subnet1: '{{ env "OCI_LB_SUBNET_ID" | default "" }}'
-              # IP pubblico riservato (network.tf): senza dominio, gli URL
-              # OAuth2 di oauth2-proxy/Keycloak devono puntare a un indirizzo
-              # noto in anticipo, non a quello assegnato dinamicamente alla
-              # creazione del LB. Valore: terraform output -raw lb_ip.
-              oci.oraclecloud.com/reserved-ips: '{{ env "OCI_LB_IP" | default "" }}'
-              # Senza questo, il cloud-controller-manager OCI gestisce da sé
-              # la security list della subnet e aggiunge le sue regole
-              # aperte (0.0.0.0/0) per le porte del Service - annullando la
-              # restrizione al solo CIDR autorizzato che imponiamo via
-              # Terraform (network.tf). "None" lascia la security list
-              # interamente a noi. Osservato accadere di nuovo alla
-              # ricreazione del Service (es. per adottare un nuovo IP
-              # riservato) se questa annotazione non è già presente.
-              service.beta.kubernetes.io/oci-load-balancer-security-list-management-mode: "None"
-          # Request più realistico per il nodo Ampere A1 da 1 OCPU/6GB
-          # (ADR-0005): questa release è comunque usata solo in "remote",
-          # dove il margine di CPU disponibile è stretto.
-          resources:
-            requests:
-              cpu: 50m
-              memory: 90Mi
-            limits:
-              cpu: 300m
-              memory: 200Mi
+      # CRD gestite dall'hook presync sotto, non dal chart (che non le
+      # aggiornerebbe mai, vedi scripts/apply-gateway-crds.sh).
+      - crds:
+          enabled: false
+        # Request ridotte per il budget Always Free (ADR-0005): i default
+        # del chart (100m/256Mi) da soli occupano un quarto della CPU
+        # schedulabile rimasta sul cluster remoto.
+        deployment:
+          envoyGateway:
+            resources:
+              requests:
+                cpu: 30m
+                memory: 128Mi
+              limits:
+                memory: 512Mi
+    hooks:
+      - events: ["presync"]
+        command: "bash"
+        args: ["scripts/apply-gateway-crds.sh", "{{ $envoyGatewayVersion }}"]
     timeout: 180
 
-  - name: oauth2-proxy-ingress
+  - name: gateway
+    namespace: envoy-gateway-system
+    chart: ./helm/charts/gateway
+    needs:
+      - envoy-gateway-system/envoy-gateway
+{{ if eq .Environment.Name "remote" }}
+    values:
+      - service:
+          annotations:
+            # Always Free: un solo Flexible Load Balancer per tenancy,
+            # banda 10 Mbps fissa (min = max) - un max diverso da 10
+            # provisiona un LB a pagamento. Vedi docs/adr/0005.
+            service.beta.kubernetes.io/oci-load-balancer-shape: "flexible"
+            service.beta.kubernetes.io/oci-load-balancer-shape-flex-min: "10"
+            service.beta.kubernetes.io/oci-load-balancer-shape-flex-max: "10"
+            # Con la topologia a subnet unica (network.tf) il
+            # cloud-controller-manager OCI non riesce a dedurla da sé
+            # ("a subnet must be specified") - va data esplicitamente.
+            # Valore: terraform output -raw subnet_id (terraform/).
+            service.beta.kubernetes.io/oci-load-balancer-subnet1: '{{ env "OCI_LB_SUBNET_ID" | default "" }}'
+            # IP pubblico riservato (network.tf): gli URL OAuth2 di
+            # oauth2-proxy/Keycloak devono puntare a un indirizzo noto in
+            # anticipo, non a quello assegnato dinamicamente alla creazione
+            # del LB. Valore: terraform output -raw lb_ip. Un solo LB Always
+            # Free: l'IP si libera solo quando il LB di ingress-nginx è
+            # rimosso, il cloud-controller-manager riprova finché non lo è.
+            oci.oraclecloud.com/reserved-ips: '{{ env "OCI_LB_IP" | default "" }}'
+            # Senza questo, il cloud-controller-manager OCI gestisce da sé
+            # la security list della subnet e aggiunge le sue regole
+            # aperte (0.0.0.0/0) per le porte del Service - annullando la
+            # restrizione al solo CIDR autorizzato che imponiamo via
+            # Terraform (network.tf). "None" lascia la security list
+            # interamente a noi.
+            service.beta.kubernetes.io/oci-load-balancer-security-list-management-mode: "None"
+{{ end }}
+    timeout: 120
+
+  - name: oauth2-proxy-route
     namespace: auth
-    chart: ./helm/charts/ingress
+    chart: ./helm/charts/http-route
     needs:
       - auth/oauth2-proxy
-      - ingress-nginx/ingress-nginx
+      - envoy-gateway-system/gateway
 {{ if eq .Environment.Name "remote" }}
     values:
       # Il browser deve raggiungere Keycloak direttamente durante il flow
@@ -575,16 +608,41 @@ releases:
       # frontend/backend (config.upstreams).
       - paths:
           - path: /
-            pathType: Prefix
             backendServiceName: oauth2-proxy
             backendServicePort: 4180
           - path: /realms
-            pathType: Prefix
             backendServiceName: keycloak-http
             backendServicePort: 8080
           - path: /resources
-            pathType: Prefix
             backendServiceName: keycloak-http
             backendServicePort: 8080
 {{ end }}
     timeout: 30
+
+  # ingress-nginx, sostituito dalle release sopra (ADR-0019):
+  # "installed: false" le fa disinstallare al prossimo sync, liberando il
+  # Load Balancer Always Free e l'IP riservato per il Service di Envoy.
+  # Da rimuovere del tutto (con il chart "ingress" e il repository
+  # ingress-nginx) dopo il primo sync remoto riuscito, step I2.
+  - name: oauth2-proxy-ingress
+    namespace: auth
+    chart: ./helm/charts/ingress
+    needs:
+      - ingress-nginx/ingress-nginx
+    installed: false
+
+  - name: ingress-nginx
+    namespace: ingress-nginx
+    chart: ingress-nginx/ingress-nginx
+    version: 4.15.1
+    needs:
+      - ingress-nginx/ingress-namespace
+    installed: false
+
+  - name: ingress-namespace
+    namespace: ingress-nginx
+    chart: ./helm/charts/namespace
+    values:
+      - name: ingress-nginx
+        component: ingress
+    installed: false

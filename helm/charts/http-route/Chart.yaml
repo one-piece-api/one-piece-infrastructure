@@ -1,0 +1,9 @@
+apiVersion: v2
+name: http-route
+description: >
+  HTTPRoute della Gateway API (ADR-0019) verso Service dello stesso
+  namespace, agganciata al Gateway del chart "gateway". Sostituisce il
+  chart "ingress": una release per gruppo di rotte, nel namespace dei
+  Service a cui punta.
+type: application
+version: 0.1.0

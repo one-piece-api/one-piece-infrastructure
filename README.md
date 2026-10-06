@@ -39,7 +39,7 @@ one-piece-infrastructure/
 ├── keycloak/                  # values Helm, realm dichiarativo (unica source of truth)
 ├── oauth2-proxy/               # values Helm, credenziali locali (non committate)
 ├── helm/charts/                 # Micro-chart locali: namespace, postgresql,
-│                                 # redis, ingress, mailpit, user-frontend,
+│                                 # redis, gateway, http-route, mailpit, user-frontend,
 │                                 # user-service (manifest raw wrappati per
 │                                 # Helmfile, vedi ADR-0002)
 ├── networking/                  # Ingress, network policy, DNS, TLS (futuro)
@@ -135,7 +135,7 @@ kubectl port-forward svc/oauth2-proxy  -n auth 4180:4180 &
 # consultano nella dashboard Resend (resend.com/emails), non più in locale
 ```
 
-L'API pubblica (`public-api`) non ha ancora una rotta sull'Ingress
+L'API pubblica (`public-api`) non ha ancora una rotta sul Gateway
 (`implementation-plan-public-api.md`, step P6): si raggiunge solo dall'interno del cluster.
 
 ```bash

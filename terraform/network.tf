@@ -121,7 +121,7 @@ resource "oci_core_subnet" "public" {
   prohibit_public_ip_on_vnic = false
 }
 
-# IP pubblico riservato per il Load Balancer di ingress-nginx (ADR-0005):
+# IP pubblico riservato per il Load Balancer del Gateway (ADR-0005/0019):
 # senza dominio, oauth2-proxy/Keycloak devono usare un indirizzo noto in
 # anticipo (non solo dopo la creazione del LB) per costruire URL di
 # redirect OAuth2 raggiungibili dal browser - vedi
@@ -135,7 +135,7 @@ resource "oci_core_public_ip" "lb" {
   lifecycle {
     # L'assegnazione alla private IP del Load Balancer è gestita da
     # Kubernetes (annotazione oci.oraclecloud.com/reserved-ips sul Service
-    # ingress-nginx), non da qui: senza questo, un apply successivo alla
+    # del proxy Envoy, ADR-0019), non da qui: senza questo, un apply successivo alla
     # prima associazione prova a scollegare l'IP dal LB, rompendo l'accesso
     # pubblico.
     ignore_changes = [private_ip_id]

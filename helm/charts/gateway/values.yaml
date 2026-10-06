@@ -1,0 +1,31 @@
+name: onepiece
+# Namespace di Envoy Gateway: il controller crea il Deployment/Service del
+# proxy Envoy nel proprio namespace, quindi Gateway ed EnvoyProxy stanno qui.
+namespace: envoy-gateway-system
+controllerName: gateway.envoyproxy.io/gatewayclass-controller
+
+# Namespace le cui HTTPRoute possono agganciarsi al Gateway (minimo
+# privilegio: non "All"). Ogni rotta sta nel namespace del Service a cui
+# punta, così non servono ReferenceGrant.
+routeNamespaces:
+  - auth
+  - app
+
+# Service LoadBalancer del proxy. Le annotazioni specifiche OCI sono date
+# solo nell'ambiente "remote" (helmfile.yaml.gotmpl); in locale/CI il
+# Service resta <pending>, come già con ingress-nginx.
+service:
+  annotations: {}
+  # Il default di Envoy Gateway è "Local"; "Cluster" è il comportamento di
+  # ingress-nginx che sostituiamo (step I1: comportamento invariato) e
+  # quello per cui è aperta la porta di health check 10256 in network.tf.
+  externalTrafficPolicy: Cluster
+
+proxy:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi

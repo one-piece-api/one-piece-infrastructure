@@ -1,0 +1,17 @@
+name: oauth2-proxy
+namespace: auth
+component: identity-provider
+
+gateway:
+  name: onepiece
+  namespace: envoy-gateway-system
+
+# Un catch-all verso oauth2-proxy (che instrada già frontend/backend, vedi
+# oauth2-proxy/values-oauth2-proxy.yaml) più eventuali percorsi instradati
+# altrove - es. Keycloak, che il browser deve raggiungere direttamente
+# durante il flow OAuth2. Come per l'Ingress, vince il prefisso più lungo
+# (regola della Gateway API), non l'ordine di dichiarazione.
+paths:
+  - path: /
+    backendServiceName: oauth2-proxy
+    backendServicePort: 4180
