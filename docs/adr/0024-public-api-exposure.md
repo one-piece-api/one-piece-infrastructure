@@ -50,8 +50,8 @@ dal gateway in CI, dove non c'è dominio. La capacità misurata nello step P5 è
 - La risposta `429` per IP ha un corpo nella forma Problem Details (`errorCode`
   `RATE_LIMITED`), ma senza `traceId`/`timestamp` e con `Content-Type:
   application/json`: Cloudflare non accetta `application/problem+json` per le risposte
-  personalizzate. La presenza di `Retry-After` va verificata nel QA dello step P6 e
-  documentata qui.
+  personalizzate. Cloudflare aggiunge da sé `Retry-After` (secondi alla fine del
+  blocco) e `Cache-Control: no-store`: verificato nel QA dello step P6 (2026-10-06).
 - Il tetto di Envoy è unico per la rotta: un singolo client entro il suo limite per IP
   può comunque contribuire a raggiungerlo. Va ritarato se le repliche o la capacità del
   database cambiano.
