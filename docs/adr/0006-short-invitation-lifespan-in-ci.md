@@ -62,7 +62,7 @@ l'ambiente `default` (sviluppo locale) resta a `PT12H`, invariato.
   resend → nuovo invito valido contro lo stack reale, non solo i rami
   raggiungibili senza attendere.
 - **Rivista (2026-10-06): da `PT5S` a `PT60S`.** Il nuovo test e2e che attiva
-  un account dal link letto in Mailpit (`accept-invitation.spec.ts`, aggiunto
+  un account dal link letto in Mailpit (`invite-accept.spec.ts`, aggiunto
   dopo che la lista vuota di azioni richiesta aveva rotto gli inviti, vedi
   ADR-0013) deve aprire il link prima che scada: 5s su un runner GitHub era
   una corsa contro il tempo. Il test di scadenza attende ~60s in più.

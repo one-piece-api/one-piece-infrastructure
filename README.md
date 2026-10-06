@@ -151,10 +151,30 @@ kubectl port-forward svc/one-piece-postgresql -n data 5433:5432 &
 ## Ambiente remoto (Oracle Cloud)
 
 Ambiente di sviluppo always-on su OKE (Oracle Kubernetes Engine), piano
-Always Free. Decisioni architetturali e motivazioni in
-`docs/adr/0005-remote-dev-environment-oracle-cloud.md`. Non ancora
-provisionato — l'ADR ne definisce l'architettura, il provisioning
-(Terraform + nuovo ambiente Helmfile `remote`) è un passo successivo.
+Always Free (ADR-0005), raggiungibile sul dominio `onepieceapi.dev` attraverso
+Cloudflare (ADR-0020):
+
+| Indirizzo | Cosa | Chi lo raggiunge |
+|---|---|---|
+| `https://app.onepieceapi.dev` | back-office (oauth2-proxy → frontend e API) | solo il proprietario |
+| `https://auth.onepieceapi.dev` | Keycloak (`/realms`, `/resources`; console admin non esposta) | solo il proprietario |
+| `https://api.onepieceapi.dev` | API pubblica (rotta dallo step P6) | tutti |
+| `https://onepieceapi.dev` | redirect verso `api.` | tutti |
+
+- **Ingresso**: Cloudflare → Load Balancer OCI (accetta HTTPS solo dagli IP
+  di Cloudflare) → Envoy Gateway (ADR-0019) → servizi. L'IP del Load
+  Balancer non risponde direttamente.
+- **HTTPS**: certificato Let's Encrypt `*.onepieceapi.dev` emesso e rinnovato
+  da cert-manager con verifica DNS-01 (ADR-0021).
+- **Email**: inviti e notifiche da `no-reply@mail.onepieceapi.dev` (Resend),
+  `contatti@onepieceapi.dev` inoltrato al proprietario (ADR-0023).
+- **Deploy**: ogni push su `main` esegue `helmfile --environment remote sync`
+  da GitHub Actions (`deploy-remote.yml`); si può lanciare anche su un branch
+  (`gh workflow run deploy-remote.yml --ref <branch>`). Terraform (OCI e
+  Cloudflare) resta manuale e locale: vedi `terraform/README.md`, anche per
+  aggiornare l'IP del proprietario quando cambia.
+- **Console admin di Keycloak**: solo via port-forward con il kubeconfig del
+  cluster (`kubectl port-forward svc/keycloak-http -n auth 8080:8080`).
 
 ## Convenzioni (da definire)
 

@@ -1,7 +1,17 @@
 tenancy_ocid = "ocid1.tenancy.oc1..xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 region       = "eu-turin-1"
 
-# IP pubblico autorizzato a raggiungere il Load Balancer (porte 80/443).
-# Trovalo con `curl -s https://api.ipify.org` dalla stessa rete da cui
-# accederai all'ambiente remoto. Aggiornalo se il tuo IP cambia.
-allowed_client_cidr = "203.0.113.4/32"
+# Unici autorizzati a raggiungere il back-office (app./auth.) tramite la
+# regola custom Cloudflare (ADR-0020). Servono entrambi: Cloudflare risponde
+# anche in IPv6 e i browser lo preferiscono. Aggiornali se cambiano, vedi
+# README.md ("Se cambia l'IP del proprietario").
+allowed_client_cidr      = "203.0.113.4/32"
+allowed_client_ipv6_cidr = "2001:db8:1:2::/64"
+
+# Token Cloudflare "Terraform" (permessi in README.md) e ID dell'account
+# (dashboard, colonna destra della home - non è un segreto).
+cloudflare_api_token  = "<token>"
+cloudflare_account_id = "<account-id>"
+
+# Casella a cui Cloudflare Email Routing inoltra contatti@<dominio> (ADR-0023).
+email_routing_destination = "you@example.com"
