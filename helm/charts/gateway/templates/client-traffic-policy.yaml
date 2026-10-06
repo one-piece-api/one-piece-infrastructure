@@ -1,0 +1,18 @@
+{{- if .Values.clientIPHeader }}
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: ClientTrafficPolicy
+metadata:
+  name: {{ .Values.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    project: onepiece-api
+    component: ingress
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ .Values.name }}
+  clientIPDetection:
+    customHeader:
+      name: {{ .Values.clientIPHeader }}
+{{- end }}

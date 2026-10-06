@@ -29,6 +29,11 @@ https:
   enabled: false
   certificateSecretName: ""
 
+# Header da cui il proxy prende l'IP reale del client (ADR-0020): in
+# "remote" "CF-Connecting-IP", affidabile perché l'origin accetta solo
+# Cloudflare. Vuoto = indirizzo della connessione (locale/CI).
+clientIPHeader: ""
+
 proxy:
   resources:
     requests:

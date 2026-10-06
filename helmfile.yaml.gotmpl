@@ -110,6 +110,16 @@ environments:
 # release "envoy-gateway"): devono restare allineate, ADR-0019.
 {{ $envoyGatewayVersion := "v1.9.2" }}
 
+# Origin pubblici dell'ambiente "remote" (ADR-0022), derivati una volta sola
+# dal dominio: un sottodominio per pubblico (ADR-0020). Fuori da "remote"
+# publicDomain non esiste e questi valori non vengono usati.
+{{ $publicDomain := .Values | get "publicDomain" "" }}
+{{ $appHost := printf "app.%s" $publicDomain }}
+{{ $authHost := printf "auth.%s" $publicDomain }}
+{{ $apiHost := printf "api.%s" $publicDomain }}
+{{ $appOrigin := printf "https://%s" $appHost }}
+{{ $authOrigin := printf "https://%s" $authHost }}
+
 helmDefaults:
   wait: true
   # Sempre innocuo (namespace "auth" già esistente dopo il primo sync): ma
@@ -227,14 +237,13 @@ releases:
         invitationTokenLifespan: '{{ .Values.invitationTokenLifespan | default "" }}'
 {{ if eq .Environment.Name "remote" }}
         # Il claim "iss" nei token riflette l'hostname pubblico di Keycloak
-        # (IP riservato, network.tf), non più "localhost" - vedi
-        # helm/charts/user-service/values.yaml.
-        jwtIssuerUri: 'http://{{ env "OCI_LB_IP" | default "localhost:8080" }}/realms/onepiece'
+        # (auth., ADR-0022), non "localhost" - vedi
+        # helm/charts/user-service/values.yaml. Le chiavi JWKS restano lette
+        # dall'indirizzo interno (application-dev.properties).
+        jwtIssuerUri: '{{ $authOrigin }}/realms/onepiece'
         # Dove atterra il browser a fine flusso di invito (UPDATE_PASSWORD/
-        # UPDATE_PROFILE/VERIFY_EMAIL) - stesso IP pubblico riservato, non più
-        # "localhost:4180" (oauth2-proxy gira sulla stessa origin dietro
-        # l'Ingress, vedi keycloakOrigin sulla release "user-frontend" sotto).
-        invitationRedirectUri: 'http://{{ env "OCI_LB_IP" | default "localhost:4180" }}/'
+        # UPDATE_PROFILE/VERIFY_EMAIL): il back-office su app.
+        invitationRedirectUri: '{{ $appOrigin }}/'
 {{ end }}
     hooks:
       - events: ["presync"]
@@ -272,12 +281,10 @@ releases:
       - resources:
           requests:
             cpu: 30m
-      # Il browser raggiunge Keycloak sulla stessa origin dell'app (routing
-      # per path dietro l'Ingress, non più "localhost:8080") - genera
-      # config.json a startup del container (repo one-piece-user-frontend,
-      # docs/adr/0001-runtime-config-injection.md). Stesso schema di
-      # jwtIssuerUri sulla release "user-service" poco sotto.
-      - keycloakOrigin: 'http://{{ env "OCI_LB_IP" | default "localhost:8080" }}'
+      # Il browser raggiunge Keycloak sul suo sottodominio (auth., ADR-0022),
+      # non "localhost:8080" - genera config.json a startup del container
+      # (repo one-piece-user-frontend, docs/adr/0001-runtime-config-injection.md).
+      - keycloakOrigin: '{{ $authOrigin }}'
 {{ end }}
     hooks:
       - events: ["presync"]
@@ -308,7 +315,7 @@ releases:
         imagePullSecrets:
           {{ .Values.imagePullSecrets | toYaml | nindent 10 }}
 {{ if eq .Environment.Name "remote" }}
-        jwtIssuerUri: 'http://{{ env "OCI_LB_IP" | default "localhost:8080" }}/realms/onepiece'
+        jwtIssuerUri: '{{ $authOrigin }}/realms/onepiece'
 {{ end }}
     hooks:
       - events: ["presync"]
@@ -384,15 +391,21 @@ releases:
             cpu: 150m
       # "command" è una lista: i values Helm non fondono le liste elemento
       # per elemento, vanno ridichiarate per intero per cambiare solo
-      # --hostname. Il browser raggiunge Keycloak tramite l'IP pubblico
-      # riservato (network.tf), non più "localhost" - l'issuer nei token
-      # deve rifletterlo, altrimenti oauth2-proxy lo rifiuta per mismatch.
+      # --hostname. Il browser raggiunge Keycloak su auth. (ADR-0022), non
+      # "localhost" - l'issuer nei token deve rifletterlo, altrimenti
+      # oauth2-proxy lo rifiuta per mismatch.
       - command:
           - "/opt/keycloak/bin/kc.sh"
           - "start"
           - "--import-realm"
-          - '--hostname=http://{{ env "OCI_LB_IP" | default "localhost" }}'
+          - '--hostname={{ $authOrigin }}'
           - "--hostname-strict=false"
+          # Il TLS termina sul Gateway: Keycloak crede agli header
+          # X-Forwarded-* (schema HTTPS, IP del client) solo se arrivano
+          # dalla rete dei pod, dove gira il proxy Envoy (il suo IP cambia a
+          # ogni riavvio, non si può fissare).
+          - "--proxy-headers=xforwarded"
+          - "--proxy-trusted-addresses=10.244.0.0/16"
 {{ end }}
     # Cold-pull immagine ~250MB (~4min su rete locale lenta) + avvio
     # (schema DB, import realm, ~60-90s in condizioni normali, ma osservato
@@ -442,12 +455,12 @@ releases:
         command: "bash"
         args: ["scripts/configure-user-profile.sh"]
       # Solo in "remote": il redirect URI del client "onepiece-proxy" nel
-      # realm importato resta fisso su "localhost" - va corretto per l'IP
-      # pubblico riservato via Admin API (stesso motivo dei due hook sopra:
+      # realm importato resta fisso su "localhost" - va corretto per app.
+      # (ADR-0022) via Admin API (stesso motivo dei due hook sopra:
       # "--import-realm" non aggiorna un client già esistente).
       - events: ["postsync"]
         command: "bash"
-        args: ["scripts/configure-remote-redirect-uris.sh"]
+        args: ["scripts/configure-remote-redirect-uris.sh", "{{ $appOrigin }}"]
       # Porta i permessi roles:read/roles:assign/roles:manage e i grant del
       # service account in linea con realm-onepiece.json su un realm già
       # esistente (stesso motivo dei tre hook sopra) - vedi il commento in
@@ -499,15 +512,18 @@ releases:
     values:
       - oauth2-proxy/values-oauth2-proxy.yaml
 {{ if eq .Environment.Name "remote" }}
-      # Il browser raggiunge Keycloak/oauth2-proxy tramite l'IP pubblico
-      # riservato (network.tf), non "localhost" - solo i campi con cui il
-      # browser interagisce direttamente cambiano; redeem-url/oidc-jwks-url
-      # restano sul DNS interno (chiamate server-to-server, invariate).
+      # Il browser raggiunge oauth2-proxy su app. e Keycloak su auth.
+      # (ADR-0022), non "localhost" - solo i campi con cui il browser
+      # interagisce direttamente cambiano; redeem-url/oidc-jwks-url restano
+      # sul DNS interno (chiamate server-to-server, invariate).
       - extraArgs:
-          oidc-issuer-url: 'http://{{ env "OCI_LB_IP" | default "localhost" }}/realms/onepiece'
-          login-url: 'http://{{ env "OCI_LB_IP" | default "localhost" }}/realms/onepiece/protocol/openid-connect/auth'
-          redirect-url: 'http://{{ env "OCI_LB_IP" | default "localhost" }}/oauth2/callback'
-          whitelist-domain: '{{ env "OCI_LB_IP" | default "localhost" }}'
+          oidc-issuer-url: '{{ $authOrigin }}/realms/onepiece'
+          login-url: '{{ $authOrigin }}/realms/onepiece/protocol/openid-connect/auth'
+          redirect-url: '{{ $appOrigin }}/oauth2/callback'
+          whitelist-domain: '{{ $authHost }}'
+          # Solo HTTPS (dominio .dev, HSTS preload): il cookie di sessione
+          # non viaggia mai in chiaro.
+          cookie-secure: "true"
 {{ end }}
     timeout: 180
     hooks:
@@ -597,6 +613,8 @@ releases:
         https:
           enabled: true
           certificateSecretName: public-domain-tls
+        # IP reale del client da Cloudflare (ADR-0020).
+        clientIPHeader: CF-Connecting-IP
 {{ end }}
     timeout: 120
 
@@ -676,19 +694,55 @@ releases:
       - envoy-gateway-system/gateway
 {{ if eq .Environment.Name "remote" }}
     values:
-      # Il browser deve raggiungere Keycloak direttamente durante il flow
-      # OAuth2 (redirect di login su /realms, risorse statiche del tema su
-      # /resources) - non solo oauth2-proxy, che gestisce già "/" per
+      # Back-office su app. (ADR-0020): oauth2-proxy instrada già
       # frontend/backend (config.upstreams).
-      - paths:
-          - path: /
-            backendServiceName: oauth2-proxy
-            backendServicePort: 4180
+      - hostnames:
+          - {{ $appHost }}
+{{ end }}
+    timeout: 30
+
+{{ if eq .Environment.Name "remote" }}
+  # Login su auth. (ADR-0020): il browser raggiunge Keycloak durante il flow
+  # OAuth2 (redirect su /realms, risorse del tema su /resources). La console
+  # admin (/admin) resta non esposta: si usa via kubectl port-forward.
+  - name: keycloak-route
+    namespace: auth
+    chart: ./helm/charts/http-route
+    needs:
+      - auth/keycloak
+      - envoy-gateway-system/gateway
+    values:
+      - name: keycloak
+        hostnames:
+          - {{ $authHost }}
+        paths:
           - path: /realms
             backendServiceName: keycloak-http
             backendServicePort: 8080
           - path: /resources
             backendServiceName: keycloak-http
             backendServicePort: 8080
-{{ end }}
     timeout: 30
+
+  # Dominio principale -> API pubblica (ADR-0020). 302, non 301: il
+  # dominio diventerà la vetrina dell'API, i browser non devono memorizzare
+  # il redirect come permanente.
+  - name: apex-route
+    namespace: app
+    chart: ./helm/charts/http-route
+    needs:
+      - app/app-namespace
+      - envoy-gateway-system/gateway
+    values:
+      - name: apex
+        namespace: app
+        component: application
+        hostnames:
+          - {{ $publicDomain }}
+        paths:
+          - path: /
+            redirect:
+              hostname: {{ $apiHost }}
+              statusCode: 302
+    timeout: 30
+{{ end }}

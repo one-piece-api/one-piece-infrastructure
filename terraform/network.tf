@@ -68,6 +68,23 @@ resource "oci_core_security_list" "onepiece" {
     }
   }
 
+  # HTTPS solo da Cloudflare (ADR-0020): con la modalità Full (strict)
+  # Cloudflare contatta l'origin solo sulla 443, quindi la 80 non gli serve.
+  # Gli intervalli arrivano dal provider Cloudflare, non da un elenco a mano.
+  dynamic "ingress_security_rules" {
+    for_each = data.cloudflare_ip_ranges.current.ipv4_cidrs
+    content {
+      protocol    = "6"
+      source      = ingress_security_rules.value
+      source_type = "CIDR_BLOCK"
+      description = "HTTPS (Gateway) - solo da Cloudflare, ADR-0020"
+      tcp_options {
+        min = 443
+        max = 443
+      }
+    }
+  }
+
   ingress_security_rules {
     protocol    = "6"
     source      = "10.0.1.0/24"

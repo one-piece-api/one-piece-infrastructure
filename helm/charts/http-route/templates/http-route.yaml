@@ -10,13 +10,26 @@ spec:
   parentRefs:
     - name: {{ .Values.gateway.name }}
       namespace: {{ .Values.gateway.namespace }}
+  {{- with .Values.hostnames }}
+  hostnames:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   rules:
     {{- range .Values.paths }}
     - matches:
         - path:
             type: PathPrefix
             value: {{ .path }}
+      {{- if .redirect }}
+      filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            hostname: {{ .redirect.hostname }}
+            statusCode: {{ .redirect.statusCode }}
+      {{- else }}
       backendRefs:
         - name: {{ .backendServiceName }}
           port: {{ .backendServicePort }}
+      {{- end }}
     {{- end }}

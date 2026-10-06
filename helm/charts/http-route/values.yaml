@@ -6,6 +6,13 @@ gateway:
   name: onepiece
   namespace: envoy-gateway-system
 
+# Host serviti dalla rotta (ADR-0020); vuoto = qualunque host, come in
+# locale/CI dove non c'è dominio.
+hostnames: []
+
+# Ogni percorso va a un Service (backendServiceName/Port) oppure, con
+# "redirect: {hostname, statusCode}", rimanda in HTTPS a un altro host.
+#
 # Un catch-all verso oauth2-proxy (che instrada già frontend/backend, vedi
 # oauth2-proxy/values-oauth2-proxy.yaml) più eventuali percorsi instradati
 # altrove - es. Keycloak, che il browser deve raggiungere direttamente
