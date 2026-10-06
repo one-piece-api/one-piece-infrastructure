@@ -75,6 +75,11 @@ jobs:
         # aggiornamento (non un install pulito) si comporta diversamente,
         # lo scenario reale una volta che il repo avrà più storia.
 
+      # Dopo il secondo sync: i ruoli devono restare corretti anche quando il
+      # Job di bootstrap gira su un'istanza già inizializzata.
+      - name: Verifica i ruoli del database (ADR-0016, ADR-0018)
+        run: ./scripts/03-database-roles-test.sh
+
       - name: Diagnostica (solo se un passo precedente è fallito)
         if: failure()
         run: |
