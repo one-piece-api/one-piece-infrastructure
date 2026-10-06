@@ -80,6 +80,12 @@ jobs:
       - name: Verifica i ruoli del database (ADR-0016, ADR-0018)
         run: ./scripts/03-database-roles-test.sh
 
+      # Dopo il secondo sync: keycloak-config-cli non deve aver cancellato le
+      # azioni richieste usate dall'invito (UF-IDU-01) e dalla cancellazione
+      # self-service (ADR-0013).
+      - name: Verifica le azioni richieste del realm (ADR-0011, ADR-0013)
+        run: ./scripts/04-realm-required-actions-test.sh
+
       - name: Diagnostica (solo se un passo precedente è fallito)
         if: failure()
         run: |

@@ -236,3 +236,10 @@ la richiesta successiva la ri-autentica in modo invisibile.
   e' un Keycloak Event Listener SPI (osservare l'evento `DELETE_ACCOUNT` lato
   Keycloak) - non un `DELETE` backend, che riaprirebbe la scelta scartata
   sopra.
+- **Correzione (2026-10-06)**: dichiarare `requiredActions` con il solo
+  `delete_account` faceva cancellare a keycloak-config-cli (ADR-0011) tutte le
+  altre azioni richieste di Keycloak, compresa `UPDATE_PASSWORD`: l'invito
+  mostrava una pagina senza step. La lista in `realm-onepiece.json` è ora
+  completa (le azioni predefinite di Keycloak 26.6, con `delete_account`
+  attivo) e `scripts/04-realm-required-actions-test.sh` lo verifica in CI dopo
+  il secondo sync. Ogni azione nuova va aggiunta a quella lista, mai sostituita.
