@@ -40,3 +40,8 @@ variable "allowed_client_ipv6_cidr" {
   type        = string
   description = "Prefisso IPv6 del proprietario, es. \"2001:db8:1:2::/64\" (il /64 della rete di casa): Cloudflare risponde anche in IPv6, e un browser dual-stack lo preferisce. Stesso ruolo di allowed_client_cidr nella regola del back-office (ADR-0020). Va aggiornato a mano se il provider cambia prefisso."
 }
+
+variable "email_routing_destination" {
+  type        = string
+  description = "Casella del proprietario a cui Cloudflare Email Routing inoltra contatti@<dominio> (ADR-0023). Solo in terraform.tfvars: un indirizzo personale non va in git."
+}

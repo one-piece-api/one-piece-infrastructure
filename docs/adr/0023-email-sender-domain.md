@@ -14,10 +14,12 @@ limite si può togliere verificando il dominio su Resend. Il piano gratuito di R
   mittente `no-reply@mail.onepieceapi.dev`. La reputazione delle email automatiche
   resta separata dal dominio principale.
 - **Record DNS via Terraform** (ADR-0020):
-  - su `mail.`: SPF, DKIM e l'MX di ritorno indicati da Resend;
-  - DMARC per il dominio.
-- **Dominio principale protetto**: SPF `v=spf1 -all` e DMARC rigido. Nessuno può
-  spedire a nome di `@onepieceapi.dev`, che non invia email.
+  - su `mail.`: DKIM, e MX + SPF del dominio di ritorno, generati da Resend
+    (regione eu-west-1); DMARC `p=quarantine` finché il dominio di invio è nuovo.
+- **Dominio principale protetto**: DMARC `p=reject`. Nessuno può spedire a nome
+  di `@onepieceapi.dev`, che non invia email. L'SPF del dominio principale è
+  quello richiesto da Email Routing (`include:_spf.mx.cloudflare.net`), gestito da
+  Cloudflare: un nome ammette un solo SPF, quindi niente `v=spf1 -all`.
 - **Email in arrivo**: Cloudflare Email Routing, `contatti@onepieceapi.dev` inoltrato
   alla casella del proprietario. È il contatto da citare nella documentazione dell'API
   pubblica.

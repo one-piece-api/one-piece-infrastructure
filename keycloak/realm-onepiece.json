@@ -19,7 +19,7 @@
   "smtpServer": {
     "host": "smtp.resend.com",
     "port": "587",
-    "from": "onboarding@resend.dev",
+    "from": "no-reply@mail.onepieceapi.dev",
     "fromDisplayName": "One Piece API",
     "auth": "true",
     "user": "resend",
