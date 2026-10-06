@@ -16,7 +16,7 @@ variable "fault_domain_index" {
 
 variable "allowed_client_cidr" {
   type        = string
-  description = "CIDR del proprietario, es. \"203.0.113.4/32\": unico autorizzato a raggiungere il back-office (app./auth.) tramite la regola custom Cloudflare (ADR-0020) - console admin e utenti seed hanno password note (ambiente dev). Finché lo step I3 non chiude l'origin, apre anche le porte 80/443 della security list. Va aggiornata a mano se l'IP cambia."
+  description = "CIDR del proprietario, es. \"203.0.113.4/32\": unico autorizzato a raggiungere il back-office (app./auth.) tramite la regola custom Cloudflare (ADR-0020) - console admin e utenti seed hanno password note (ambiente dev). Va aggiornata a mano se l'IP cambia."
 }
 
 variable "cloudflare_api_token" {

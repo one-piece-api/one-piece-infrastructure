@@ -46,29 +46,8 @@ resource "oci_core_security_list" "onepiece" {
     }
   }
 
-  ingress_security_rules {
-    protocol    = "6"
-    source      = var.allowed_client_cidr
-    source_type = "CIDR_BLOCK"
-    description = "HTTP (ingress-nginx) - solo dal CIDR autorizzato, vedi var.allowed_client_cidr"
-    tcp_options {
-      min = 80
-      max = 80
-    }
-  }
-
-  ingress_security_rules {
-    protocol    = "6"
-    source      = var.allowed_client_cidr
-    source_type = "CIDR_BLOCK"
-    description = "HTTPS (ingress-nginx) - solo dal CIDR autorizzato, vedi var.allowed_client_cidr"
-    tcp_options {
-      min = 443
-      max = 443
-    }
-  }
-
-  # HTTPS solo da Cloudflare (ADR-0020): con la modalità Full (strict)
+  # Unico ingresso HTTP(S): la 443 solo da Cloudflare (ADR-0020), l'origin
+  # non è raggiungibile in altro modo. Con la modalità Full (strict)
   # Cloudflare contatta l'origin solo sulla 443, quindi la 80 non gli serve.
   # Gli intervalli arrivano dal provider Cloudflare, non da un elenco a mano.
   dynamic "ingress_security_rules" {
