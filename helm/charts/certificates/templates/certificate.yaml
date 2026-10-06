@@ -1,0 +1,16 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ .Values.certificate.name }}
+  namespace: {{ .Values.certificate.namespace }}
+  labels:
+    project: onepiece-api
+    component: certificates
+spec:
+  secretName: {{ .Values.certificate.secretName }}
+  issuerRef:
+    kind: ClusterIssuer
+    name: {{ .Values.issuer }}
+  dnsNames:
+    - {{ required "domain obbligatorio" .Values.domain }}
+    - "*.{{ .Values.domain }}"

@@ -1,0 +1,26 @@
+{{- $issuers := dict
+  "letsencrypt-staging" "https://acme-staging-v02.api.letsencrypt.org/directory"
+  "letsencrypt-production" "https://acme-v02.api.letsencrypt.org/directory" }}
+{{- range $name, $server := $issuers }}
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: {{ $name }}
+  labels:
+    project: onepiece-api
+    component: certificates
+spec:
+  acme:
+    server: {{ $server }}
+    # Nessuna email: Let's Encrypt non invia più avvisi di scadenza (2025),
+    # e i rinnovi li fa cert-manager da solo.
+    privateKeySecretRef:
+      name: {{ $name }}-account-key
+    solvers:
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: {{ $.Values.cloudflareTokenSecret.name }}
+              key: {{ $.Values.cloudflareTokenSecret.key }}
+{{- end }}

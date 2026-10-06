@@ -1,0 +1,9 @@
+apiVersion: v2
+name: certificates
+description: >
+  Certificati TLS dell'origin (ADR-0021): ClusterIssuer Let's Encrypt
+  (staging e production) con verifica DNS-01 su Cloudflare, e il
+  certificato wildcard del dominio pubblico, nel namespace del Gateway che
+  lo serve.
+type: application
+version: 0.1.0

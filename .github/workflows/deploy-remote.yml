@@ -38,6 +38,9 @@ env:
   GHCR_PULL_USERNAME: ${{ secrets.GHCR_PULL_USERNAME }}
   GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
   RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+  # Token Cloudflare DNS-only per la verifica DNS-01 di cert-manager
+  # (ADR-0021), vedi scripts/create-cloudflare-dns-token-secret.sh.
+  CLOUDFLARE_DNS_API_TOKEN: ${{ secrets.CLOUDFLARE_DNS_API_TOKEN }}
   OCI_LB_SUBNET_ID: ${{ vars.OCI_LB_SUBNET_ID }}
   OCI_LB_IP: ${{ vars.OCI_LB_IP }}
 

@@ -21,15 +21,14 @@ repositories:
     url: https://codecentric.github.io/helm-charts
   - name: oauth2-proxy
     url: https://oauth2-proxy.github.io/manifests
-  # Solo per disinstallare la release "ingress-nginx" (installed: false
-  # sotto) - da rimuovere insieme a quella release, step I2.
-  - name: ingress-nginx
-    url: https://kubernetes.github.io/ingress-nginx
   # Chart di Envoy Gateway, pubblicati come artefatti OCI su Docker Hub
   # (ADR-0019).
   - name: envoyproxy
     url: docker.io/envoyproxy
     oci: true
+  # cert-manager, solo nell'ambiente "remote" (ADR-0021).
+  - name: jetstack
+    url: https://charts.jetstack.io
 
 # Due ambienti: "default" (sviluppo locale, invariato) e "ci" (CI di questo
 # repo, vedi .github/workflows/test-infrastructure.yml). In locale
@@ -100,6 +99,11 @@ environments:
         imagePullSecrets:
           - name: ghcr-pull-secret
         invitationTokenLifespan: ""
+        # Dominio pubblico (ADR-0020/0022): un solo valore da cui derivano
+        # certificato e, dallo step I3, gli host app./auth./api.
+        publicDomain: onepieceapi.dev
+        # ClusterIssuer del certificato del dominio (ADR-0021).
+        certificateIssuer: letsencrypt-staging
 
 ---
 # Una sola versione per chart di Envoy Gateway e CRD (hook presync della
@@ -580,9 +584,7 @@ releases:
             # IP pubblico riservato (network.tf): gli URL OAuth2 di
             # oauth2-proxy/Keycloak devono puntare a un indirizzo noto in
             # anticipo, non a quello assegnato dinamicamente alla creazione
-            # del LB. Valore: terraform output -raw lb_ip. Un solo LB Always
-            # Free: l'IP si libera solo quando il LB di ingress-nginx è
-            # rimosso, il cloud-controller-manager riprova finché non lo è.
+            # del LB. Valore: terraform output -raw lb_ip.
             oci.oraclecloud.com/reserved-ips: '{{ env "OCI_LB_IP" | default "" }}'
             # Senza questo, il cloud-controller-manager OCI gestisce da sé
             # la security list della subnet e aggiunge le sue regole
@@ -591,8 +593,76 @@ releases:
             # Terraform (network.tf). "None" lascia la security list
             # interamente a noi.
             service.beta.kubernetes.io/oci-load-balancer-security-list-management-mode: "None"
+        # HTTPS con il certificato del dominio (release "certificates").
+        https:
+          enabled: true
+          certificateSecretName: public-domain-tls
 {{ end }}
     timeout: 120
+
+{{ if eq .Environment.Name "remote" }}
+  # HTTPS dell'origin (ADR-0021): cert-manager chiede a Let's Encrypt il
+  # certificato del dominio con verifica DNS-01 su Cloudflare e lo rinnova
+  # da solo. Solo in "remote": locale e CI non hanno dominio.
+  - name: cert-manager-namespace
+    namespace: cert-manager
+    chart: ./helm/charts/namespace
+    values:
+      - name: cert-manager
+        component: certificates
+    timeout: 30
+
+  - name: cert-manager
+    namespace: cert-manager
+    chart: jetstack/cert-manager
+    version: v1.21.2
+    needs:
+      - cert-manager/cert-manager-namespace
+    values:
+      # CRD come template del chart: Helm le aggiorna a ogni upgrade, e
+      # "keep" le conserva (con i certificati) se la release viene rimossa.
+      - crds:
+          enabled: true
+          keep: true
+        # Request ridotte per il budget Always Free (ADR-0005): i default del
+        # chart non ne impostano, ma lo scheduler deve poterli contare.
+        resources:
+          requests:
+            cpu: 10m
+            memory: 64Mi
+          limits:
+            memory: 192Mi
+        webhook:
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 96Mi
+        cainjector:
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              memory: 192Mi
+    hooks:
+      - events: ["presync"]
+        command: "bash"
+        args: ["scripts/create-cloudflare-dns-token-secret.sh"]
+    timeout: 180
+
+  - name: certificates
+    namespace: cert-manager
+    chart: ./helm/charts/certificates
+    needs:
+      - cert-manager/cert-manager
+      - envoy-gateway-system/gateway-namespace
+    values:
+      - domain: {{ .Values.publicDomain }}
+        issuer: {{ .Values.certificateIssuer }}
+    timeout: 60
+{{ end }}
 
   - name: oauth2-proxy-route
     namespace: auth
@@ -618,31 +688,3 @@ releases:
             backendServicePort: 8080
 {{ end }}
     timeout: 30
-
-  # ingress-nginx, sostituito dalle release sopra (ADR-0019):
-  # "installed: false" le fa disinstallare al prossimo sync, liberando il
-  # Load Balancer Always Free e l'IP riservato per il Service di Envoy.
-  # Da rimuovere del tutto (con il chart "ingress" e il repository
-  # ingress-nginx) dopo il primo sync remoto riuscito, step I2.
-  - name: oauth2-proxy-ingress
-    namespace: auth
-    chart: ./helm/charts/ingress
-    needs:
-      - ingress-nginx/ingress-nginx
-    installed: false
-
-  - name: ingress-nginx
-    namespace: ingress-nginx
-    chart: ingress-nginx/ingress-nginx
-    version: 4.15.1
-    needs:
-      - ingress-nginx/ingress-namespace
-    installed: false
-
-  - name: ingress-namespace
-    namespace: ingress-nginx
-    chart: ./helm/charts/namespace
-    values:
-      - name: ingress-nginx
-        component: ingress
-    installed: false

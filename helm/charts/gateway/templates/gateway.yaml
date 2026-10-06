@@ -47,18 +47,23 @@ metadata:
     component: ingress
 spec:
   gatewayClassName: {{ .Values.name }}
+  # Nessun "hostname" sui listener: accettano qualunque host, come la regola
+  # catch-all dell'Ingress sostituito (host per sottodominio: step I3).
   listeners:
-    # Nessun "hostname": accetta qualunque host, come la regola catch-all
-    # dell'Ingress che sostituisce (nessun dominio ancora, step I1).
     - name: http
       protocol: HTTP
       port: 80
       allowedRoutes:
-        namespaces:
-          from: Selector
-          selector:
-            matchExpressions:
-              - key: kubernetes.io/metadata.name
-                operator: In
-                values:
-                  {{- toYaml .Values.routeNamespaces | nindent 18 }}
+        {{- include "gateway.allowedRoutes" . | nindent 8 }}
+    {{- if .Values.https.enabled }}
+    - name: https
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: {{ required "https.certificateSecretName obbligatorio con https.enabled" .Values.https.certificateSecretName }}
+      allowedRoutes:
+        {{- include "gateway.allowedRoutes" . | nindent 8 }}
+    {{- end }}

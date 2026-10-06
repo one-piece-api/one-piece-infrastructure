@@ -21,6 +21,14 @@ service:
   # quello per cui è aperta la porta di health check 10256 in network.tf.
   externalTrafficPolicy: Cluster
 
+# Listener HTTPS (ADR-0021), solo in "remote": il Secret TLS è il
+# certificato wildcard emesso da cert-manager (chart "certificates") nel
+# namespace del Gateway. Finché non è emesso, il listener resta non pronto
+# e la porta 80 continua a servire.
+https:
+  enabled: false
+  certificateSecretName: ""
+
 proxy:
   resources:
     requests:

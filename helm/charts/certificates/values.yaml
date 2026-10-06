@@ -1,0 +1,22 @@
+# Dominio pubblico: il certificato copre il dominio e i sottodomini di primo
+# livello (app., auth., api. - ADR-0020). Dato dall'ambiente "remote".
+domain: ""
+
+# ClusterIssuer usato dal certificato: "letsencrypt-staging" per la messa a
+# punto (limiti di emissione larghi, certificato non fidato dai browser),
+# "letsencrypt-production" a regime.
+issuer: letsencrypt-production
+
+# Secret con il token API Cloudflare (permessi Zone Read + DNS Edit sulla
+# sola zona del dominio), creato dall'hook presync della release
+# "cert-manager" (scripts/create-cloudflare-dns-token-secret.sh) nel
+# namespace di cert-manager, dove i ClusterIssuer cercano i loro Secret.
+cloudflareTokenSecret:
+  name: cloudflare-dns-api-token
+  key: api-token
+
+# Il Secret TLS deve stare nel namespace del Gateway che lo referenzia.
+certificate:
+  name: public-domain
+  namespace: envoy-gateway-system
+  secretName: public-domain-tls
