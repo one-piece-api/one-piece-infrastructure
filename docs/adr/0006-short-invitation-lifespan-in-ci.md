@@ -28,7 +28,7 @@ alcuna modifica al codice Java.
 Il chart `helm/charts/user-service` guadagna un valore
 `invitationTokenLifespan` (stringa vuota di default = nessun override,
 resta `PT12H`), che il template inietta come quella env var solo se
-valorizzato. `helmfile.yaml.gotmpl` lo imposta a `"PT5S"` solo per
+valorizzato. `helmfile.yaml.gotmpl` lo imposta a `"PT60S"` solo per
 l'ambiente `ci` (lo stesso già usato per le immagini GHCR, ADR-0004) —
 l'ambiente `default` (sviluppo locale) resta a `PT12H`, invariato.
 
@@ -51,7 +51,7 @@ l'ambiente `default` (sviluppo locale) resta a `PT12H`, invariato.
 ## Conseguenze
 
 - Un solo ambiente (`ci`) ha un comportamento di sicurezza-rilevante
-  diverso da produzione (token di invito valido 5s anziché 12h): accettabile
+  diverso da produzione (token di invito valido 60s anziché 12h): accettabile
   perché quell'ambiente è effimero (cluster kind ricreato e distrutto ad
   ogni run, mai esposto) e mai promosso.
 - Se in futuro comparirà un ambiente "staging" persistente, questo valore
@@ -61,3 +61,8 @@ l'ambiente `default` (sviluppo locale) resta a `PT12H`, invariato.
 - `one-piece-e2e` può ora esercitare l'intero ciclo invito → scadenza →
   resend → nuovo invito valido contro lo stack reale, non solo i rami
   raggiungibili senza attendere.
+- **Rivista (2026-10-06): da `PT5S` a `PT60S`.** Il nuovo test e2e che attiva
+  un account dal link letto in Mailpit (`accept-invitation.spec.ts`, aggiunto
+  dopo che la lista vuota di azioni richiesta aveva rotto gli inviti, vedi
+  ADR-0013) deve aprire il link prima che scada: 5s su un runner GitHub era
+  una corsa contro il tempo. Il test di scadenza attende ~60s in più.

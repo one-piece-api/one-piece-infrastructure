@@ -74,17 +74,19 @@ environments:
         # scripts/create-ghcr-pull-secret.sh) è necessario per il pull.
         imagePullSecrets:
           - name: ghcr-pull-secret
-        # PT5S invece del PT12H di produzione (application.properties): solo
+        # PT60S invece del PT12H di produzione (application.properties): solo
         # questo ambiente lo consuma one-piece-e2e, che deve raggiungere
         # INVITATION_EXPIRED (Step 5, UF-IDU-03) in un run di pochi minuti,
-        # non attendere 12h - vedi helm/charts/user-service/values.yaml.
-        invitationTokenLifespan: "PT5S"
+        # non attendere 12h - vedi helm/charts/user-service/values.yaml. Non
+        # meno di 60s: il test che attiva un account dal link letto in
+        # Mailpit deve fare in tempo ad aprirlo (ADR-0006).
+        invitationTokenLifespan: "PT60S"
   remote:
     values:
       # Stessa origine immagini di "ci" (GHCR, ADR-0004): l'ambiente remoto
       # non ha un meccanismo di "kind load docker-image" - vedi ADR-0005.
       # invitationTokenLifespan invariata (default applicativo, non il
-      # PT5S usato solo per i test e2e in ci).
+      # PT60S usato solo per i test e2e in ci).
       - userServiceImage: ghcr.io/one-piece-api/user-service:latest
         userServiceImagePullPolicy: Always
         userFrontendImage: ghcr.io/one-piece-api/user-frontend:latest
