@@ -26,6 +26,11 @@ spec:
           requestRedirect:
             scheme: https
             hostname: {{ .redirect.hostname }}
+            {{- with .redirect.path }}
+            path:
+              type: ReplaceFullPath
+              replaceFullPath: {{ . }}
+            {{- end }}
             statusCode: {{ .redirect.statusCode }}
       {{- else }}
       backendRefs:

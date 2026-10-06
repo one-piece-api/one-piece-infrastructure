@@ -22,7 +22,7 @@ variable "allowed_client_cidr" {
 variable "cloudflare_api_token" {
   type        = string
   sensitive   = true
-  description = "Token API Cloudflare \"Terraform\" (ADR-0020): Zone Read, DNS Edit, Zone Settings Edit, Zone WAF Edit, Email Routing Rules Edit sulla zona del dominio; Email Routing Addresses Edit sull'account. Solo in terraform.tfvars (escluso da git)."
+  description = "Token API Cloudflare \"Terraform\" (ADR-0020): Zone Read, DNS Edit, Zone Settings Edit, Zone WAF Edit, Cache Rules Edit, Email Routing Rules Edit sulla zona del dominio; Email Routing Addresses Edit sull'account. Solo in terraform.tfvars (escluso da git)."
 }
 
 variable "cloudflare_account_id" {

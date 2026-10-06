@@ -10,8 +10,13 @@ gateway:
 # locale/CI dove non c'è dominio.
 hostnames: []
 
+# Tetto complessivo di richieste sulla rotta, es. {requests: 50, unit: Second}
+# (ADR-0024); vuoto = nessun tetto.
+rateLimit: {}
+
 # Ogni percorso va a un Service (backendServiceName/Port) oppure, con
-# "redirect: {hostname, statusCode}", rimanda in HTTPS a un altro host.
+# "redirect: {hostname, statusCode, path?}", rimanda in HTTPS a un altro host
+# (path: percorso che sostituisce quello richiesto).
 #
 # Un catch-all verso oauth2-proxy (che instrada già frontend/backend, vedi
 # oauth2-proxy/values-oauth2-proxy.yaml) più eventuali percorsi instradati

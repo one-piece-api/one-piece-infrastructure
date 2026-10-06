@@ -1,0 +1,25 @@
+{{- with .Values.rateLimit }}
+# Tetto complessivo sulla rotta (ADR-0024): il limite locale di Envoy Gateway
+# conta tutte le richieste della rotta insieme, non per IP - il limite per IP
+# è su Cloudflare.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: {{ $.Values.name }}
+  namespace: {{ $.Values.namespace }}
+  labels:
+    project: onepiece-api
+    component: {{ $.Values.component }}
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: {{ $.Values.name }}
+  rateLimit:
+    type: Local
+    local:
+      rules:
+        - limit:
+            requests: {{ .requests }}
+            unit: {{ .unit }}
+{{- end }}

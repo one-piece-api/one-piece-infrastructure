@@ -118,7 +118,9 @@ environments:
 {{ $publicDomain := .Values | get "publicDomain" "" }}
 {{ $appHost := printf "app.%s" $publicDomain }}
 {{ $authHost := printf "auth.%s" $publicDomain }}
-{{ $apiHost := printf "api.%s" $publicDomain }}
+{{/* L'host dell'API esiste in ogni ambiente (ADR-0024): fuori da "remote" è
+     api.localhost, raggiunto dai test e2e con "Host: api.localhost". */}}
+{{ $apiHost := ternary (printf "api.%s" $publicDomain) "api.localhost" (ne $publicDomain "") }}
 {{ $appOrigin := printf "https://%s" $appHost }}
 {{ $authOrigin := printf "https://%s" $authHost }}
 
@@ -334,8 +336,7 @@ releases:
   # API pubblica in sola lettura (one-piece-api/docs/implementation-plan-public-api.md):
   # legge lo schema "published" di content_service come public_api_reader
   # (ADR-0018). Dipende da content-service perché le viste e i grant nascono
-  # dalle sue migrazioni. Nessuna rotta sull'Ingress finché non c'è il
-  # percorso pubblico (step P6).
+  # dalle sue migrazioni. Esposta dalla release "api-route" (ADR-0024).
   - name: public-api
     namespace: app
     chart: ./helm/charts/public-api
@@ -726,9 +727,9 @@ releases:
             backendServicePort: 8080
     timeout: 30
 
-  # Dominio principale -> API pubblica (ADR-0020). 302, non 301: il
-  # dominio diventerà la vetrina dell'API, i browser non devono memorizzare
-  # il redirect come permanente.
+  # Dominio principale -> indice dell'API pubblica (ADR-0020/0024). 302, non
+  # 301: il dominio diventerà la vetrina dell'API, i browser non devono
+  # memorizzare il redirect come permanente.
   - name: apex-route
     namespace: app
     chart: ./helm/charts/http-route
@@ -745,6 +746,33 @@ releases:
           - path: /
             redirect:
               hostname: {{ $apiHost }}
+              path: /v1
               statusCode: 302
     timeout: 30
 {{ end }}
+
+  # API pubblica (ADR-0024): host dedicato, nessun prefisso, mai attraverso
+  # oauth2-proxy (D10 del piano). In ogni ambiente, perché i test e2e passino
+  # dal gateway come il remoto. Il limite per IP è su Cloudflare; qui solo un
+  # tetto complessivo, sotto la capacità misurata nello step P5 (~60-65 req/s,
+  # limitata dal PostgreSQL condiviso).
+  - name: api-route
+    namespace: app
+    chart: ./helm/charts/http-route
+    needs:
+      - app/public-api
+      - envoy-gateway-system/gateway
+    values:
+      - name: public-api
+        namespace: app
+        component: application
+        hostnames:
+          - {{ $apiHost }}
+        paths:
+          - path: /
+            backendServiceName: one-piece-public-api
+            backendServicePort: 80
+        rateLimit:
+          requests: 50
+          unit: Second
+    timeout: 30

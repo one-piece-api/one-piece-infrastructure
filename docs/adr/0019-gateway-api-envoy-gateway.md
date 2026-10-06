@@ -20,6 +20,10 @@ gli chiede:
   - Routing con `Gateway` + `HTTPRoute`, risorse standard.
   - IP reale (`ClientTrafficPolicy`) e limite di richieste (`BackendTrafficPolicy`,
     modalità locale: nessun Redis) sono policy dichiarative dedicate, non annotazioni.
+    **Corretto (2026-10-06, ADR-0024):** il limite locale non conta per singolo IP
+    (solo un tetto per rotta) e il suo `429` non porta `Retry-After`; il conteggio
+    per IP richiede la modalità globale (servizio di rate limit + Redis). Il limite
+    per IP è quindi su Cloudflare, Envoy tiene solo un tetto complessivo.
   - Le annotazioni OCI del Load Balancer (shape flexible 10 Mbps, subnet, IP riservato,
     security list non gestita dal CCM) passano al Service generato tramite la risorsa
     `EnvoyProxy`.

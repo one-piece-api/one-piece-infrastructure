@@ -26,7 +26,7 @@ vault, dimensionamento del node pool).
   chiave privata locale.
 - Token API Cloudflare "Terraform" (My Profile → API Tokens → Custom token),
   limitato alla zona `onepieceapi.dev`: Zone Read, DNS Edit, Zone Settings
-  Edit, Zone WAF Edit, Email Routing Rules Edit; sull'account Email Routing
+  Edit, Zone WAF Edit, Cache Rules Edit, Email Routing Rules Edit; sull'account Email Routing
   Addresses Edit. Consigliato il filtro sull'IP del proprietario.
 - `terraform.tfvars` compilato a partire da `terraform.tfvars.example`:
   `tenancy_ocid` e `region` (stessi valori di `~/.oci/config`), token e
