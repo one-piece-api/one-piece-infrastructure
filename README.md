@@ -135,11 +135,13 @@ kubectl port-forward svc/oauth2-proxy  -n auth 4180:4180 &
 # consultano nella dashboard Resend (resend.com/emails), non più in locale
 ```
 
-L'API pubblica (`public-api`) non ha ancora una rotta sul Gateway
-(`implementation-plan-public-api.md`, step P6): si raggiunge solo dall'interno del cluster.
+L'API pubblica (`public-api`) passa da Envoy sulla rotta per host `api.localhost`
+(ADR-0024), come `api.onepieceapi.dev` in remoto:
 
 ```bash
-kubectl port-forward svc/one-piece-public-api -n app 8083:80 &
+kubectl port-forward -n envoy-gateway-system \
+  "$(kubectl get svc -n envoy-gateway-system -l app.kubernetes.io/component=proxy -o name)" 8090:80 &
+# poi http://api.localhost:8090/v1 (per Bruno/Node serve "127.0.0.1 api.localhost" nel file hosts)
 ```
 
 Per eseguire `user-service`/`content-service` fuori dal cluster (es. da IntelliJ, per debugging — profilo Spring `local` di default in entrambi, vedi il rispettivo `README.md`/`application-local.properties`), oltre al port-forward di Keycloak sopra serve anche quello del datasource condiviso:
