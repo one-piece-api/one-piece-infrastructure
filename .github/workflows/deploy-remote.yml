@@ -43,6 +43,11 @@ env:
 
 jobs:
   deploy-remote:
+    # Spento finché PR5 (piano production-remote) non porta i segreti nel Vault
+    # e il deploy distruttivo viene confermato: senza, le ExternalSecret non
+    # trovano i valori e "helmfile sync" fallisce al chart "credentials".
+    # Si riattiva con la variabile di repo REMOTE_DEPLOY_ENABLED=true.
+    if: ${{ vars.REMOTE_DEPLOY_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
