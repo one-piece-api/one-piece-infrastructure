@@ -18,9 +18,9 @@ vault_id="${OCI_VAULT_ID:-$(tf_output vault_id)}"
 compartment_id="${OCI_COMPARTMENT_ID:-$(tf_output compartment_id)}"
 key_id="${OCI_VAULT_KEY_ID:-$(tf_output vault_key_id)}"
 
-hex()    { openssl rand -hex "$1"; }
+hex()    { openssl rand -hex "$1" | tr -d '\r\n'; }
 # oauth2-proxy decodifica solo base64 URL-safe a 32 byte (vedi ADR-0009).
-cookie() { openssl rand -base64 32 | tr -- '+/' '-_' | tr -d '\n'; }
+cookie() { openssl rand -base64 32 | tr -- '+/' '-_' | tr -d '\r\n'; }
 
 # nome-secret:generatore - i client secret sono condivisi tra realm e
 # consumatori tramite lo stesso secret del Vault.
