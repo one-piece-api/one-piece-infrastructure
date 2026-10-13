@@ -39,11 +39,25 @@ spec:
               value: http://keycloak-http.auth.svc.cluster.local:8080
             - name: KEYCLOAK_USER
               value: admin
-            # Placeholder locale (KC_BOOTSTRAP_ADMIN_PASSWORD in
-            # keycloak/values-keycloakx.yaml), non un segreto reale - stesso
-            # pattern già duplicato in scripts/configure-realm-smtp.sh.
             - name: KEYCLOAK_PASSWORD
-              value: "admin-change-me-locally"
+              valueFrom:
+                secretKeyRef:
+                  name: one-piece-keycloak-admin-credentials
+                  key: password
+            # Variabili del realm ($(env:...) in realm-onepiece.json): i
+            # segreti dei client non stanno nel file.
+            - name: IMPORT_VARSUBSTITUTION_ENABLED
+              value: "true"
+            - name: PROXY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: one-piece-realm-secrets
+                  key: PROXY_CLIENT_SECRET
+            - name: USER_SERVICE_ADMIN_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: one-piece-realm-secrets
+                  key: USER_SERVICE_ADMIN_CLIENT_SECRET
             - name: IMPORT_FILES_LOCATIONS
               value: /config/realm-onepiece.json
             - name: KEYCLOAK_AVAILABILITYCHECK_ENABLED

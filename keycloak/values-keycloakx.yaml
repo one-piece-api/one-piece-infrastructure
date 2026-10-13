@@ -47,8 +47,10 @@ extraEnv: |
   - name: KC_BOOTSTRAP_ADMIN_USERNAME
     value: admin
   - name: KC_BOOTSTRAP_ADMIN_PASSWORD
-    # Placeholder locale: NON usare in un ambiente reale.
-    value: "admin-change-me-locally"
+    valueFrom:
+      secretKeyRef:
+        name: one-piece-keycloak-admin-credentials
+        key: password
 
 extraVolumes: |
   - name: realm-config

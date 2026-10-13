@@ -25,9 +25,8 @@ fi
 
 app_origin="${1:?origin del back-office richiesto in \"remote\", es. https://app.onepieceapi.dev}"
 
-# Placeholder locale (KC_BOOTSTRAP_ADMIN_PASSWORD in keycloak/values-keycloakx.yaml),
-# non un segreto reale - stesso pattern già usato in configure-realm-smtp.sh.
-kc_admin_password="admin-change-me-locally"
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/lib/keycloak-admin-password.sh"
 
 kubectl exec -n auth statefulset/keycloak -- bash -c '
   set -euo pipefail

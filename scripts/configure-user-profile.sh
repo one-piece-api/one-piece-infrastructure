@@ -33,9 +33,8 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-# Placeholder locale (KC_BOOTSTRAP_ADMIN_PASSWORD in keycloak/values-keycloakx.yaml),
-# non un segreto reale - stesso pattern di configure-realm-smtp.sh.
-kc_admin_password="admin-change-me-locally"
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/lib/keycloak-admin-password.sh"
 
 kubectl exec -i -n auth statefulset/keycloak -- bash -c 'cat > /tmp/onepiece-user-profile-config.json' <<'JSON'
 {

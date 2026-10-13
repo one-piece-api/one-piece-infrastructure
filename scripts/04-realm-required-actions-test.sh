@@ -14,9 +14,8 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/common.sh"
 cd "$REPO_ROOT"
 
-# Placeholder locale (KC_BOOTSTRAP_ADMIN_PASSWORD in keycloak/values-keycloakx.yaml),
-# non un segreto reale - stesso pattern di configure-realm-smtp.sh.
-kc_admin_password="admin-change-me-locally"
+# shellcheck disable=SC1091
+source "$REPO_ROOT/scripts/lib/keycloak-admin-password.sh"
 
 # Invito (UF-IDU-01), profilo utente di Keycloak 26, cambio lingua,
 # cancellazione self-service (ADR-0013).
