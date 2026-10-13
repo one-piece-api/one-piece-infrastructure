@@ -68,7 +68,7 @@ curl -s -c "$COOKIES" -b "$COOKIES" "$auth_url" -o "$WORKDIR/login.html"
 action_url="$(grep -o 'action="[^"]*"' "$WORKDIR/login.html" | head -1 | sed 's/action="//;s/"$//;s/&amp;/\&/g')"
 [ -n "$action_url" ] || { error "form di login non trovato nella pagina Keycloak"; exit 1; }
 
-luffy_password="$(jq -r '.users[] | select(.username=="luffy") | .credentials[0].value' keycloak/realm-onepiece.json)"
+luffy_password="$(jq -r '.users[] | select(.username=="luffy") | .credentials[0].value' keycloak/realm-onepiece-dev-users.json)"
 curl -s -c "$COOKIES" -b "$COOKIES" -D "$WORKDIR/step3.h" \
   -X POST "$action_url" \
   --data-urlencode "username=luffy" \

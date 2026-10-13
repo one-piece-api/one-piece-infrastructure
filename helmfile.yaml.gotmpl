@@ -493,12 +493,14 @@ releases:
       - events: ["postsync"]
         command: "bash"
         args: ["scripts/configure-content-permissions.sh"]
+{{ if ne .Environment.Name "remote" }}
       # Account di prova per il workflow editoriale, dopo l'hook sopra perché
-      # usano il ruolo PUBLISHER che quello crea. Anche in "remote", che è un
-      # ambiente di sviluppo come gli altri.
+      # usano il ruolo PUBLISHER che quello crea. Non in "remote": lì gli
+      # account di prova non esistono (D2, piano production-remote).
       - events: ["postsync"]
         command: "bash"
         args: ["scripts/seed-content-qa-users.sh"]
+{{ end }}
 
   - name: redis
     namespace: auth

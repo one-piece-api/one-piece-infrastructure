@@ -84,3 +84,9 @@ tenerlo minimale e verificabile - consolidamento futuro possibile.
 - Gli hook ad-hoc esistenti restano, con overlap parziale (permessi ruoli):
   consolidarli e' un'opportunita' futura, non necessaria per chiudere questo
   gap.
+- Dal 2026-10-13 gli utenti di prova stanno in `realm-onepiece-dev-users.json`
+  (ConfigMap `one-piece-realm-dev-users`, assente in `remote`); il Job importa
+  `/config/*.json` da un volume projected con prefissi `10-`/`20-` per
+  imporre l'ordine (ruoli prima degli utenti). Il service account di
+  `user-service-admin` resta nel realm base. keycloak-config-cli non cancella
+  gli utenti assenti dal file (verificato in locale).

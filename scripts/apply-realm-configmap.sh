@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Genera e applica la ConfigMap del realm da keycloak/realm-onepiece.json.
+# Genera e applica le ConfigMap del realm: keycloak/realm-onepiece.json
+# (config) e, fuori da "remote", realm-onepiece-dev-users.json (utenti di prova).
 #
 # Hook presync della release "keycloak" in helmfile.yaml: gira prima di ogni
 # sync così la ConfigMap è sempre allineata al realm prima che Keycloak la
@@ -21,3 +22,15 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 kubectl create configmap one-piece-realm-config \
   --from-file=realm-onepiece.json=keycloak/realm-onepiece.json \
   -n auth --dry-run=client -o yaml | kubectl apply -f -
+
+# Utenti di prova (D2, piano production-remote): in una ConfigMap a parte,
+# montata solo dal Job di keycloak-config-cli e mai da Keycloak (--import-realm
+# scarterebbe comunque un secondo file sullo stesso realm). In "remote" non
+# esiste: se c'era da un deploy precedente va tolta, non solo non aggiornata.
+if [ "${HELMFILE_ENVIRONMENT:-default}" = "remote" ]; then
+  kubectl delete configmap one-piece-realm-dev-users -n auth --ignore-not-found
+else
+  kubectl create configmap one-piece-realm-dev-users \
+    --from-file=realm-onepiece-dev-users.json=keycloak/realm-onepiece-dev-users.json \
+    -n auth --dry-run=client -o yaml | kubectl apply -f -
+fi

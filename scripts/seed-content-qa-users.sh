@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Account di prova per collaudare il workflow editoriale dei contenuti
 # (one-piece-api/docs/implementation-plan-content.md, Step 0). Gli utenti di
-# realm-onepiece.json coprono ADMIN (luffy), un solo EDITOR attivo (nami) e un
+# realm-onepiece-dev-users.json coprono ADMIN (luffy), un solo EDITOR attivo (nami) e un
 # REVIEWER (zoro): per provare le regole che richiedono identità distinte
 # servono anche
 #   chopper  EDITOR             un secondo autore (bozze altrui in sola lettura)
@@ -12,9 +12,8 @@
 # realm dichiarativo: lo crea configure-content-permissions.sh, che gira subito
 # prima come hook postsync della release "keycloak".
 #
-# In ogni ambiente, "remote" incluso: è un ambiente di sviluppo, non di
-# produzione, con gli stessi utenti a password nota di realm-onepiece.json.
-# Da rivedere, insieme a quelli, quando nascerà un ambiente di produzione.
+# Solo in "default" e "ci" (l'hook è escluso da "remote" nel helmfile), con la
+# stessa convenzione di password di realm-onepiece-dev-users.json.
 # Idempotente: un utente già presente non viene toccato (nemmeno la
 # password), i ruoli mancanti vengono aggiunti.
 
