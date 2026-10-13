@@ -7,18 +7,10 @@ data "oci_identity_fault_domains" "ads" {
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
 }
 
-data "oci_containerengine_cluster_option" "onepiece" {
-  cluster_option_id = "all"
-  compartment_id    = oci_identity_compartment.onepiece.id
-}
-
 locals {
-  # Ultima versione Kubernetes supportata da OKE al momento dell'apply,
-  # non fissata a mano (coerente con la policy di versioning del progetto:
-  # verificata al momento, non assunta da memoria).
-  kubernetes_version = data.oci_containerengine_cluster_option.onepiece.kubernetes_versions[
-    length(data.oci_containerengine_cluster_option.onepiece.kubernetes_versions) - 1
-  ]
+  # Fissata da var.kubernetes_version: un upgrade del control plane è una
+  # scelta esplicita, non l'ultima versione offerta da OKE all'apply.
+  kubernetes_version = var.kubernetes_version
 }
 
 resource "oci_containerengine_cluster" "onepiece" {
