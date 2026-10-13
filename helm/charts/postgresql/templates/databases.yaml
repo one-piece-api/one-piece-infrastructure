@@ -6,41 +6,10 @@ volume vuoto, quindi un database aggiunto in seguito non verrebbe mai creato
 su un'istanza già esistente.
 */ -}}
 {{- /*
-Proprietari ("databases") e lettori ("readers", ADR-0018): ogni ruolo ha
-password e Secret propri.
+Proprietari ("databases") e lettori ("readers", ADR-0018). Le password stanno nei
+Secret del chart "credentials" (PR1), non qui.
 */ -}}
 {{- $roles := concat .Values.databases .Values.readers }}
-{{- range $roles }}
----
-# Letto dal servizio consumatore, nel suo namespace (un secretKeyRef non
-# attraversa i namespace).
-apiVersion: v1
-kind: Secret
-metadata:
-  name: {{ .secretName }}
-  namespace: {{ .secretNamespace }}
-  labels:
-    project: onepiece-api
-    component: {{ $.Values.component }}
-type: Opaque
-stringData:
-  password: {{ .password | quote }}
-{{- end }}
----
-# Le stesse password, lette dal Job di bootstrap nel namespace dell'istanza.
-apiVersion: v1
-kind: Secret
-metadata:
-  name: {{ .Values.name }}-role-credentials
-  namespace: {{ .Values.namespace }}
-  labels:
-    project: onepiece-api
-    component: {{ .Values.component }}
-type: Opaque
-stringData:
-{{- range $roles }}
-  {{ .username }}: {{ .password | quote }}
-{{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap

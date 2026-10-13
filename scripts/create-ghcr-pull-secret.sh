@@ -14,6 +14,8 @@
 # caricate direttamente nel cluster kind con "kind load docker-image"
 # (ADR-0003): nessun pull da registry, quindi qui non c'è nulla da fare.
 # GHCR_PULL_TOKEN assente è il segnale di questo caso, non un errore.
+#
+# In "remote" il Secret non nasce qui ma da un ExternalSecret (chart "credentials", PR1).
 
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
@@ -21,6 +23,11 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 source scripts/lib/load-env-local.sh
 
 namespace="${1:-app}"
+
+if [ "${HELMFILE_ENVIRONMENT:-default}" = "remote" ]; then
+  echo "[create-ghcr-pull-secret] remote: il Secret nasce da un ExternalSecret (chart credentials), salto."
+  exit 0
+fi
 
 if [ -z "${GHCR_PULL_TOKEN:-}" ]; then
   echo "[create-ghcr-pull-secret] GHCR_PULL_TOKEN non impostata, salto (ambiente locale)."

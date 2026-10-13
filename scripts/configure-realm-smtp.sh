@@ -22,11 +22,8 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 # shellcheck disable=SC1091
 source scripts/lib/load-env-local.sh
 
-# Placeholder locale (KC_BOOTSTRAP_ADMIN_PASSWORD in keycloak/values-keycloakx.yaml),
-# non un segreto reale - stesso pattern di duplicazione già usato per le
-# credenziali placeholder altrove nel repo (es. keycloak.admin.client-secret
-# in application-local.properties di one-piece-user-service).
-kc_admin_password="admin-change-me-locally"
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/lib/keycloak-admin-password.sh"
 
 if [ "${HELMFILE_ENVIRONMENT:-default}" = "ci" ]; then
   kubectl exec -n auth statefulset/keycloak -- bash -c '
@@ -42,6 +39,11 @@ if [ "${HELMFILE_ENVIRONMENT:-default}" = "ci" ]; then
 
   echo "[configure-realm-smtp] ci: realm 'onepiece' passato a Mailpit (mock SMTP)."
   exit 0
+fi
+
+if [ "${HELMFILE_ENVIRONMENT:-default}" = "remote" ]; then
+  # In "remote" la chiave arriva dal Vault tramite il chart "credentials" (PR1).
+  RESEND_API_KEY="$(kubectl get secret one-piece-resend-credentials -n auth -o jsonpath='{.data.api-key}' | base64 -d)"
 fi
 
 if [ -z "${RESEND_API_KEY:-}" ]; then

@@ -179,15 +179,35 @@ releases:
         component: database
     timeout: 30
 
+  # Secret delle credenziali (PR1): placeholder in "default"/"ci" (ADR-0001),
+  # ExternalSecret verso OCI Vault in "remote". Registro unico in
+  # helm/charts/credentials/values.yaml, nei namespace dei consumatori.
+  - name: credentials
+    namespace: data
+    chart: ./helm/charts/credentials
+    needs:
+      - data/data-namespace
+      - auth/namespace
+      - app/app-namespace
+{{ if eq .Environment.Name "remote" }}
+      - cert-manager/cert-manager-namespace
+      - external-secrets/secret-store
+    values:
+      - externalSecrets:
+          enabled: true
+{{ end }}
+    timeout: 120
+
   # Istanza PostgreSQL unica per tutti i servizi, un database + un ruolo
   # proprietario ciascuno (ADR-0016): su OCI ogni volume costa almeno 50 GB
   # della quota Always Free da 200 GB, un'istanza per servizio la sforava.
-  # I Secret delle credenziali nascono nel namespace di ciascun consumatore,
-  # da cui i needs sui namespace "auth" e "app".
+  # I Secret delle credenziali (release "credentials") stanno nel namespace di
+  # ciascun consumatore, da cui i needs sui namespace "auth" e "app".
   - name: postgresql
     namespace: data
     chart: ./helm/charts/postgresql
     needs:
+      - data/credentials
       - data/data-namespace
       - auth/namespace
       - app/app-namespace
@@ -195,17 +215,14 @@ releases:
       - databases:
           - database: keycloak
             username: keycloak
-            password: "keycloak-db-change-me-locally"
             secretNamespace: auth
             secretName: one-piece-keycloak-db-credentials
           - database: user_service
             username: user_service
-            password: "user-service-db-change-me-locally"
             secretNamespace: app
             secretName: one-piece-user-service-db-credentials
           - database: content_service
             username: content_service
-            password: "content-service-db-change-me-locally"
             secretNamespace: app
             secretName: one-piece-content-service-db-credentials
         # API pubblica: legge solo lo schema "published" di content_service
@@ -215,7 +232,6 @@ releases:
         readers:
           - username: public_api_reader
             database: content_service
-            password: "public-api-reader-db-change-me-locally"
             connectionLimit: 10
             statementTimeout: 2s
             secretNamespace: app
@@ -235,6 +251,7 @@ releases:
     namespace: app
     chart: ./helm/charts/user-service
     needs:
+      - data/credentials
       - app/app-namespace
       - data/postgresql
     values:
@@ -263,14 +280,6 @@ releases:
       - events: ["presync"]
         command: "bash"
         args: ["scripts/build-and-load-local-image.sh", "one-piece-user-service"]
-      # Credenziali del client Keycloak "user-service-admin" (Admin API,
-      # Step 3 — listing utenti). Nessuna dipendenza da "needs" verso
-      # auth/keycloak: legge solo il file locale realm-onepiece.json, non
-      # chiama Keycloak — l'autenticazione vera avviene lazy, alla prima
-      # chiamata Admin API effettiva.
-      - events: ["presync"]
-        command: "bash"
-        args: ["scripts/create-user-service-admin-secret.sh"]
     timeout: 120
 
   - name: user-frontend
@@ -315,6 +324,7 @@ releases:
     namespace: app
     chart: ./helm/charts/content-service
     needs:
+      - data/credentials
       - app/app-namespace
       - data/postgresql
     values:
@@ -345,6 +355,7 @@ releases:
     namespace: app
     chart: ./helm/charts/public-api
     needs:
+      - data/credentials
       - app/app-namespace
       - data/postgresql
       - app/content-service
@@ -376,6 +387,7 @@ releases:
     chart: codecentric/keycloakx
     version: 7.2.3
     needs:
+      - data/credentials
       - auth/namespace
       - data/postgresql
 {{ if eq .Environment.Name "ci" }}
@@ -492,6 +504,7 @@ releases:
     namespace: auth
     chart: ./helm/charts/redis
     needs:
+      - data/credentials
       - auth/namespace
 {{ if eq .Environment.Name "remote" }}
     values:
@@ -510,6 +523,7 @@ releases:
     chart: oauth2-proxy/oauth2-proxy
     version: 10.7.0
     needs:
+      - data/credentials
       - auth/namespace
       - auth/keycloak
       - auth/redis
@@ -533,12 +547,6 @@ releases:
           cookie-secure: "true"
 {{ end }}
     timeout: 180
-    hooks:
-      # Il Secret con client-id/client-secret/cookie-secret deve esistere
-      # prima del sync: i values referenziano config.existingSecret.
-      - events: ["presync"]
-        command: "bash"
-        args: ["scripts/generate-oauth2-proxy-secret.sh"]
 
   # Ingresso pubblico (ADR-0019): Gateway API con Envoy Gateway, al posto di
   # ingress-nginx (dismesso da Kubernetes a marzo 2026). Come prima, il
@@ -696,6 +704,7 @@ releases:
     chart: jetstack/cert-manager
     version: v1.21.2
     needs:
+      - data/credentials
       - cert-manager/cert-manager-namespace
     values:
       # CRD come template del chart: Helm le aggiorna a ogni upgrade, e
@@ -725,10 +734,6 @@ releases:
               memory: 64Mi
             limits:
               memory: 192Mi
-    hooks:
-      - events: ["presync"]
-        command: "bash"
-        args: ["scripts/create-cloudflare-dns-token-secret.sh"]
     timeout: 180
 
   - name: certificates

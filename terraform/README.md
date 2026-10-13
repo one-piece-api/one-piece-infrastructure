@@ -90,3 +90,8 @@ scelta adeguata a un singolo ambiente dev senza requisiti di alta
 disponibilità. Non è la topologia "hardened" a più subnet che OCI
 documenta per cluster production-grade — va rivista se questo ambiente
 dovesse evolvere oltre il suo scopo attuale.
+
+`scripts/seed-vault-secrets.sh` crea in un colpo solo i secret usati dal
+chart `credentials` (ADR-0025): casuali, più GHCR e Resend da `.env.local`.
+Non sovrascrive mai un secret esistente. Il token Cloudflare DNS
+(`onepiece-cloudflare-dns-token`) si carica a mano con il comando sopra.

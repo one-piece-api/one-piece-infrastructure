@@ -38,9 +38,7 @@ Ambiente pronto. Per accedervi:
 Promemoria:
   - Le credenziali placeholder (admin Keycloak, DB, client secret) vanno
     sostituite prima di qualunque ambiente non locale.
-  - oauth2-proxy/secret.local.yaml contiene un cookie secret generato
-    casualmente: non è mai committato (vedi .gitignore) e non va riusato
-    fuori da questo cluster kind locale.
+  - I placeholder locali stanno nel chart helm/charts/credentials (ADR-0025).
   - Per aggiornare lo stack dopo una modifica: helmfile sync (dalla root)
   - Per distruggere tutto: scripts/teardown.sh
 EOF

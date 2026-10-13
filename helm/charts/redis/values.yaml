@@ -1,7 +1,6 @@
 # Unica istanza per ora: session storage di oauth2-proxy nel namespace
-# "auth" (vedi docs/adr/0009-redis-session-store.md). Nessuna password
-# reale: come per helm/charts/postgresql, è un backing store raggiungibile
-# solo dentro il cluster, il placeholder locale è sufficiente (ADR-0001).
+# "auth" (vedi docs/adr/0009-redis-session-store.md). La password sta nel
+# chart "credentials" (PR1).
 namespace: auth
 component: identity-provider
 name: one-piece-redis
@@ -10,8 +9,6 @@ name: one-piece-redis
 # helm/charts/postgresql/values.yaml per lo stesso motivo.
 image: docker.io/library/redis:8.10.1-alpine
 secretName: one-piece-redis-credentials
-# Local-dev placeholder only — never a real credential. See ADR-0001.
-password: "redis-change-me-locally"
 resources:
   requests:
     cpu: 50m

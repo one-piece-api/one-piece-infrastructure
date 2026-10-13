@@ -10,23 +10,20 @@ name: one-piece-postgresql
 # nome breve fosse sufficiente lì.
 image: docker.io/library/postgres:18.6
 
-# Superuser "postgres": usato solo dall'istanza stessa e dal Job di
-# bootstrap, mai da un servizio applicativo.
+# Superuser "postgres" (password nel chart "credentials"): usato solo
+# dall'istanza stessa e dal Job di bootstrap, mai da un servizio applicativo.
 admin:
   secretName: one-piece-postgresql-admin-credentials
-  # Local-dev placeholder only — never a real credential. See ADR-0001.
-  password: "postgres-admin-change-me-locally"
 
 # Un elemento per servizio:
 #   database/username - database e ruolo proprietario creati dal Job di bootstrap
-#   password          - placeholder di sviluppo locale (ADR-0001)
 #   secretNamespace   - namespace del servizio consumatore
 #   secretName        - Secret (chiave "password") letto dal servizio consumatore
 databases: []
 
 # Ruoli che leggono il database di un altro servizio (ADR-0018), creati
 # dopo i database:
-#   username/password                 - ruolo e placeholder locale (ADR-0001)
+#   username                          - ruolo
 #   database                          - unico database su cui ha CONNECT
 #   connectionLimit/statementTimeout  - tetto alle connessioni e alla durata di una query
 #   secretNamespace/secretName        - come in "databases"

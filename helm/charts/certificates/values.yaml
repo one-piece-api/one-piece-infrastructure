@@ -8,8 +8,8 @@ domain: ""
 issuer: letsencrypt-production
 
 # Secret con il token API Cloudflare (permessi Zone Read + DNS Edit sulla
-# sola zona del dominio), creato dall'hook presync della release
-# "cert-manager" (scripts/create-cloudflare-dns-token-secret.sh) nel
+# sola zona del dominio), creato dal chart
+# "credentials" (ExternalSecret verso il Vault, ADR-0025) nel
 # namespace di cert-manager, dove i ClusterIssuer cercano i loro Secret.
 cloudflareTokenSecret:
   name: cloudflare-dns-api-token

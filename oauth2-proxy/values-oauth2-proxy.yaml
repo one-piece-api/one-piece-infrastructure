@@ -1,11 +1,9 @@
 # Valori Helm per oauth2-proxy/oauth2-proxy — ambiente locale (kind).
 #
 # Le credenziali (client-id, client-secret, cookie-secret) NON sono definite
-# qui: sono lette da un Secret Kubernetes esterno referenziato tramite
-# `config.existingSecret`. Il manifest reale (con valori generati/placeholder)
-# vive in `oauth2-proxy/secret.local.yaml`, escluso da git dal pattern
-# `*secret*.yaml` in .gitignore. La versione tracciata è
-# `oauth2-proxy/secret.local.example.yaml`.
+# qui: sono lette dal Secret `one-piece-oauth2-proxy-credentials`, creato dal
+# chart `credentials` (placeholder in locale, Vault in remote - ADR-0025) e
+# referenziato tramite `config.existingSecret`.
 
 config:
   existingSecret: one-piece-oauth2-proxy-credentials

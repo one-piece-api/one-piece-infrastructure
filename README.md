@@ -94,11 +94,9 @@ script locali leggono da env var - copiare da `.env.local.example` una
 tantum e valorizzare; `scripts/lib/load-env-local.sh` lo carica
 automaticamente in ogni script che ne ha bisogno (compresi gli hook
 Helmfile invocati direttamente, es. `helmfile sync -l name=keycloak`), così
-non serve `export` manuale ad ogni sessione di shell. Stesso spirito di
-`oauth2-proxy/secret.local.yaml` per l'altro segreto locale di questo repo
-(quello, a differenza di questi, non richiede un account esterno: viene
-letto/generato da `realm-onepiece.json` e da un valore casuale, vedi
-`scripts/generate-oauth2-proxy-secret.sh`).
+non serve `export` manuale ad ogni sessione di shell. I placeholder degli altri
+segreti (DB, Redis, Keycloak, oauth2-proxy) stanno nel chart
+`helm/charts/credentials`, senza account esterno (ADR-0025).
 
 Il realm ha `adminEventsEnabled: true` (dettagli disattivati,
 `adminEventsDetailsEnabled: false`; retention 7 giorni, `eventsExpiration:

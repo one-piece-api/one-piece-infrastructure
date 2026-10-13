@@ -2,8 +2,7 @@
 # Carica i segreti locali da .env.local (radice del repo, escluso da git dal
 # pattern ".env.*" in .gitignore) se presente - copiare da .env.local.example
 # e valorizzare una volta sola, invece di "export" manuale ad ogni sessione
-# di shell. Stesso spirito di oauth2-proxy/secret.local.yaml per gli altri
-# segreti locali di questo repo (vedi scripts/generate-oauth2-proxy-secret.sh).
+# di shell.
 #
 # Va incluso con "source" da ogni script che legge un segreto locale
 # (RESEND_API_KEY oggi, altri in futuro) - autonomo apposta, non solo via
