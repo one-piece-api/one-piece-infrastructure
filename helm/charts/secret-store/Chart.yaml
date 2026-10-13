@@ -1,0 +1,7 @@
+apiVersion: v2
+name: secret-store
+description: >
+  ClusterSecretStore di External Secrets Operator verso OCI Vault, con
+  autenticazione instance principal (terraform/iam.tf). Solo "remote".
+type: application
+version: 0.1.0

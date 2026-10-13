@@ -1,0 +1,5 @@
+# Nome dello store, referenziato dagli ExternalSecret (PR1).
+name: oci-vault
+# OCID del Vault e regione: terraform output vault_id / region.
+vaultId: ""
+region: ""

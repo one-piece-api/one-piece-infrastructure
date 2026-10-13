@@ -43,6 +43,9 @@ env:
   CLOUDFLARE_DNS_API_TOKEN: ${{ secrets.CLOUDFLARE_DNS_API_TOKEN }}
   OCI_LB_SUBNET_ID: ${{ vars.OCI_LB_SUBNET_ID }}
   OCI_LB_IP: ${{ vars.OCI_LB_IP }}
+  # Vault OCI letto da External Secrets Operator (terraform output vault_id).
+  OCI_VAULT_ID: ${{ vars.OCI_VAULT_ID }}
+  OCI_REGION: ${{ vars.OCI_CLI_REGION }}
 
 jobs:
   deploy-remote:

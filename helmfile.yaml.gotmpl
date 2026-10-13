@@ -29,6 +29,10 @@ repositories:
   # cert-manager, solo nell'ambiente "remote" (ADR-0021).
   - name: jetstack
     url: https://charts.jetstack.io
+  # External Secrets Operator, solo nell'ambiente "remote" (PR0 del piano
+  # production-remote).
+  - name: external-secrets
+    url: https://charts.external-secrets.io
 
 # Due ambienti: "default" (sviluppo locale, invariato) e "ci" (CI di questo
 # repo, vedi .github/workflows/test-infrastructure.yml). In locale
@@ -622,6 +626,60 @@ releases:
     timeout: 120
 
 {{ if eq .Environment.Name "remote" }}
+  # Segreti dal Vault OCI: ESO li sincronizza in Secret Kubernetes. Solo in
+  # "remote": locale e CI restano sui placeholder. Auth instance principal
+  # (terraform/iam.tf).
+  - name: external-secrets-namespace
+    namespace: external-secrets
+    chart: ./helm/charts/namespace
+    values:
+      - name: external-secrets
+        component: secrets
+    timeout: 30
+
+  - name: external-secrets
+    namespace: external-secrets
+    chart: external-secrets/external-secrets
+    version: 2.12.0
+    needs:
+      - external-secrets/external-secrets-namespace
+    values:
+      # CRD gestite dal chart (Helm le aggiorna a ogni upgrade).
+      - installCRDs: true
+        # Request ridotte per il budget Always Free (ADR-0005).
+        resources:
+          requests:
+            cpu: 10m
+            memory: 64Mi
+          limits:
+            memory: 192Mi
+        webhook:
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 96Mi
+        certController:
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              memory: 192Mi
+    timeout: 180
+
+  - name: secret-store
+    namespace: external-secrets
+    chart: ./helm/charts/secret-store
+    needs:
+      - external-secrets/external-secrets
+    values:
+      # terraform output -raw vault_id / region (terraform/).
+      - vaultId: '{{ requiredEnv "OCI_VAULT_ID" }}'
+        region: '{{ requiredEnv "OCI_REGION" }}'
+    timeout: 60
+
   # HTTPS dell'origin (ADR-0021): cert-manager chiede a Let's Encrypt il
   # certificato del dominio con verifica DNS-01 su Cloudflare e lo rinnova
   # da solo. Solo in "remote": locale e CI non hanno dominio.
