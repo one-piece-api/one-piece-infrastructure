@@ -772,7 +772,8 @@ releases:
 {{ if eq .Environment.Name "remote" }}
   # Login su auth. (ADR-0020): il browser raggiunge Keycloak durante il flow
   # OAuth2 (redirect su /realms, risorse del tema su /resources). La console
-  # admin (/admin) resta non esposta: si usa via kubectl port-forward.
+  # admin (/admin) non è instradata e /realms/master è negata (D3): la console
+  # si usa via kubectl port-forward.
   - name: keycloak-route
     namespace: auth
     chart: ./helm/charts/http-route
@@ -783,6 +784,8 @@ releases:
       - name: keycloak
         hostnames:
           - {{ $authHost }}
+        denyPaths:
+          - /realms/master
         paths:
           - path: /realms
             backendServiceName: keycloak-http

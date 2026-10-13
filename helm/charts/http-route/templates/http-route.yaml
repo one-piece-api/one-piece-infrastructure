@@ -15,6 +15,18 @@ spec:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   rules:
+    {{- range .Values.denyPaths }}
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ . }}
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.envoyproxy.io
+            kind: HTTPRouteFilter
+            name: {{ $.Values.name }}-deny
+    {{- end }}
     {{- range .Values.paths }}
     - matches:
         - path:

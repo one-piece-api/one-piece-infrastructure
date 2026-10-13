@@ -27,3 +27,7 @@ paths:
   - path: /
     backendServiceName: oauth2-proxy
     backendServicePort: 4180
+
+# Percorsi (prefissi) negati con 404 anche se un percorso più corto li
+# instrada, es. /realms/master sotto /realms: vince il prefisso più lungo.
+denyPaths: []
