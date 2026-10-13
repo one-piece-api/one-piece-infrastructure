@@ -40,3 +40,7 @@ output "subnet_id" {
   # esplicitamente via l'annotazione oci-load-balancer-subnet1, vedi
   # helmfile.yaml.gotmpl.
 }
+
+output "region" {
+  value = var.region
+}
