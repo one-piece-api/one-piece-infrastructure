@@ -1,0 +1,5 @@
+{
+  "realm": "onepiece",
+  "failureFactor": 5,
+  "passwordPolicy": "length(12) and notUsername and notEmail"
+}

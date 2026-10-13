@@ -97,3 +97,10 @@ spec:
                   items:
                     - key: realm-onepiece-dev-users.json
                       path: 20-realm-onepiece-dev-users.json
+              # Irrigidimento di produzione (D4): solo in "remote".
+              - configMap:
+                  name: one-piece-realm-hardening
+                  optional: true
+                  items:
+                    - key: realm-onepiece-hardening.json
+                      path: 30-realm-onepiece-hardening.json

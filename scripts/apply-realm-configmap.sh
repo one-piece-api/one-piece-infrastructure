@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Genera e applica le ConfigMap del realm: keycloak/realm-onepiece.json
-# (config) e, fuori da "remote", realm-onepiece-dev-users.json (utenti di prova).
+# (config) e, fuori da "remote", realm-onepiece-dev-users.json (utenti di prova); in "remote" realm-onepiece-hardening.json.
 #
 # Hook presync della release "keycloak" in helmfile.yaml: gira prima di ogni
 # sync così la ConfigMap è sempre allineata al realm prima che Keycloak la
@@ -33,4 +33,15 @@ else
   kubectl create configmap one-piece-realm-dev-users \
     --from-file=realm-onepiece-dev-users.json=keycloak/realm-onepiece-dev-users.json \
     -n auth --dry-run=client -o yaml | kubectl apply -f -
+fi
+
+# Irrigidimento di produzione (D4): soglia brute-force e password policy
+# sovrascrivono i valori permissivi del realm base. Solo in "remote": altrove i
+# test e le password di prova non rispetterebbero la policy.
+if [ "${HELMFILE_ENVIRONMENT:-default}" = "remote" ]; then
+  kubectl create configmap one-piece-realm-hardening \
+    --from-file=realm-onepiece-hardening.json=keycloak/realm-onepiece-hardening.json \
+    -n auth --dry-run=client -o yaml | kubectl apply -f -
+else
+  kubectl delete configmap one-piece-realm-hardening -n auth --ignore-not-found
 fi

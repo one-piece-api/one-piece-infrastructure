@@ -86,6 +86,9 @@ jobs:
       - name: Verifica le azioni richieste del realm (ADR-0011, ADR-0013)
         run: ./scripts/04-realm-required-actions-test.sh
 
+      - name: Verifica l'irrigidimento del realm (D3/D4)
+        run: ./scripts/05-realm-hardening-test.sh
+
       - name: Diagnostica (solo se un passo precedente è fallito)
         if: failure()
         run: |
