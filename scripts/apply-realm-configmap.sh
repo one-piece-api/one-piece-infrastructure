@@ -19,6 +19,14 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
+# Fuori da un cluster kind locale, HELMFILE_ENVIRONMENT è obbligatoria: senza,
+# una sync manuale verso il remoto applicherebbe il ramo "non remote" e
+# importerebbe gli utenti di prova (D2).
+if [ -z "${HELMFILE_ENVIRONMENT:-}" ] && [[ "$(kubectl config current-context)" != kind-* ]]; then
+  echo "HELMFILE_ENVIRONMENT non impostata con un contesto non-kind: esportala (es. remote)." >&2
+  exit 1
+fi
+
 kubectl create configmap one-piece-realm-config \
   --from-file=realm-onepiece.json=keycloak/realm-onepiece.json \
   -n auth --dry-run=client -o yaml | kubectl apply -f -
