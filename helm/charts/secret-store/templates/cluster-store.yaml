@@ -1,0 +1,13 @@
+apiVersion: external-secrets.io/v1
+kind: ClusterSecretStore
+metadata:
+  name: {{ .Values.name }}
+  labels:
+    project: onepiece-api
+    component: secrets
+spec:
+  provider:
+    oracle:
+      vault: {{ required "vaultId obbligatorio (terraform output vault_id)" .Values.vaultId }}
+      region: {{ required "region obbligatoria (terraform output region)" .Values.region }}
+      principalType: InstancePrincipal
