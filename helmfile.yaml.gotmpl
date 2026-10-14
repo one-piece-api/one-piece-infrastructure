@@ -418,6 +418,10 @@ releases:
           - "start"
           - "--import-realm"
           - '--hostname={{ $authOrigin }}'
+          # La console di amministrazione si raggiunge solo via port-forward
+          # (D3, piano production-remote): senza, i suoi URL userebbero
+          # l'hostname pubblico e il browser bloccherebbe l'iframe di sessione.
+          - "--hostname-admin=http://localhost:8080"
           - "--hostname-strict=false"
           # Il TLS termina sul Gateway: Keycloak crede agli header
           # X-Forwarded-* (schema HTTPS, IP del client) solo se arrivano
