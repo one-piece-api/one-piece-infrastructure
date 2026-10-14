@@ -148,6 +148,19 @@ Per eseguire `user-service`/`content-service` fuori dal cluster (es. da IntelliJ
 kubectl port-forward svc/one-piece-postgresql -n data 5433:5432 &
 ```
 
+### Amministrazione di Keycloak in remoto
+
+La console `/admin` non è utilizzabile in remoto: `/admin` e `/realms/master` sono negati dal Gateway (D3) e la console costruisce le chiamate REST sull'host pubblico (`--hostname-admin` non basta). Le operazioni di admin si fanno con `kcadm` dentro il pod, che legge le credenziali bootstrap dalle env var del pod senza stamparle:
+
+```bash
+kubectl exec -n auth keycloak-0 -- bash -c '
+K=/opt/keycloak/bin/kcadm.sh; C=/tmp/kcadm.config
+$K config credentials --config $C --server http://localhost:8080 --realm master \
+  --user "$KC_BOOTSTRAP_ADMIN_USERNAME" --password "$KC_BOOTSTRAP_ADMIN_PASSWORD"
+$K get users --config $C -r onepiece --fields username,enabled
+rm -f $C'
+```
+
 ## Ambiente remoto (Oracle Cloud)
 
 Ambiente di sviluppo always-on su OKE (Oracle Kubernetes Engine), piano
