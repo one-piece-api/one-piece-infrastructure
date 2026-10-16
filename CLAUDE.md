@@ -1,106 +1,38 @@
-# Engineering Guidelines
+# onepiece-infrastructure
 
-## Core Principles
+kind cluster (local), OKE on Oracle Cloud (remote), Helmfile orchestration, Keycloak realm, Terraform (OCI + Cloudflare). Setup, access and remote overview: `README.md`. Decisions: `docs/adr/` (0001–0025).
 
-- Prioritize correctness, clarity, maintainability and security over "just making it work".
-- Prefer the simplest solution that satisfies the requirements without sacrificing engineering quality.
-- Avoid both under-engineering and unnecessary over-engineering.
-- Use established architectural and design patterns where they provide a clear benefit.
-- Prefer standards and established solutions over custom implementations.
+## Commands
 
-## Code Quality
+```bash
+./scripts/setup.sh                       # local cluster from zero + smoke test
+./scripts/teardown.sh                    # deletes the kind cluster (asks)
+helmfile sync -l name=<release>          # one release and its hooks
+HELMFILE_ENVIRONMENT=ci ./scripts/setup.sh   # CI-like: GHCR images, Mailpit, 60 s invitations
+```
 
-- Keep code and files consistently well-formatted, indented and easy to read.
-- Use clear, explicit and descriptive names for classes, methods, variables and files.
-- Maintain strong separation of responsibilities and minimize unnecessary coupling.
-- Prefer cohesive modules with explicit dependencies.
-- Avoid duplicated logic.
-- Prefer abstractions when they improve maintainability or express a meaningful domain concept.
-- Do not introduce abstractions without a clear purpose.
+Environments: `default` (local, `:local` images built from sibling repos), `ci`, `remote`.
 
-## Configuration
+## Map
 
-- Prefer configuration through environment variables, configuration files or constants.
-- Do not scatter configuration values or literals throughout the codebase.
-- Keep configurable values centralized and clearly named.
-- Never commit secrets or credentials to Git.
+| Path | Holds |
+|---|---|
+| `helmfile.yaml.gotmpl` | Releases, `needs:` order, per-environment values |
+| `helm/charts/` | Local micro-charts; `credentials` is the single secret registry (ADR-0025) |
+| `keycloak/` | Helm values and the declarative realm, synced by keycloak-config-cli (ADR-0011) |
+| `scripts/` | Setup steps, hooks, realm configuration, QA seed users, vault seeding |
+| `terraform/` | OCI and Cloudflare, applied by hand (`terraform/README.md`) |
 
-## Architecture
+## Rules
 
-- Analyze the existing architecture before implementing significant changes.
-- Do not introduce architectural changes without explaining the motivation.
-- When multiple valid solutions exist, explain the main alternatives and trade-offs before choosing.
-- Do not introduce technologies, libraries or infrastructure components without a concrete need.
-- Prefer framework-native and standard solutions over custom mechanisms.
-- Do not modify or circumvent framework behavior to force a solution to work.
-- Investigate the root cause and use the framework as intended.
-- Avoid introducing dependencies between components unless they are justified.
+- **Pushing `main` deploys to the remote** (`deploy-remote.yml`): ask before pushing, as everywhere.
+- **Always Free only.** Verify every OCI resource against current Oracle docs: OKE `BASIC_CLUSTER`, Vault `DEFAULT` with `SOFTWARE` keys, the one free flexible LB at 10 Mbps. Anything paid is flagged to the owner, never chosen silently.
+- **Secrets:** placeholders in the `credentials` chart locally/CI, `ExternalSecret` from OCI Vault on remote. Never print secret values.
+- **Remote images must be fully qualified** (`docker.io/curlimages/curl:latest`): OKE's CRI-O rejects short names; kind accepts them, so it only fails on the remote.
+- **Remote checks are read-only** unless the owner asks. Admin operations go through `kcadm` inside the pod (README).
+- **Manual syncs to the remote need `HELMFILE_ENVIRONMENT=remote`**: otherwise the realm import brings back the dev test users.
+- The remote is being turned into production (`../docs/implementation-plan-production-remote.md`): real secrets from the Vault, no test users, data that matters. Any wipe needs the owner's explicit confirmation.
 
-## Security
+## Remote at a glance
 
-- Treat security as part of the design, not as a later step.
-- Prefer established security standards and best practices.
-- For security decisions, prefer authoritative sources such as IETF/RFCs, OWASP, NIST and official technology documentation.
-- Never implement custom authentication or cryptographic mechanisms when standard solutions exist.
-- Never expose or commit secrets, credentials or sensitive configuration.
-
-## Testing
-
-- Testing is mandatory, not optional.
-- Define the testing strategy before or alongside implementation.
-- Choose the appropriate test level: unit, integration, component, contract or end-to-end.
-- Every significant feature or behavior change must include appropriate tests.
-- Run relevant tests and validation after significant changes.
-- Never hide or bypass failing tests, warnings or errors just to obtain a passing build.
-- Investigate failures and fix their root cause.
-
-## Documentation
-
-- Keep documentation concise, structured and optimized for fast human and AI consumption.
-- Avoid unnecessary prose, repetition and duplication.
-- Document significant architectural decisions, not implementation details that are already evident from the code.
-- Use ADRs for important architectural decisions.
-- ADRs should contain: context, decision, alternatives and consequences.
-- Keep documentation synchronized with the implementation.
-
-## Educational Workflow
-
-The project is also a learning environment.
-
-For every significant architectural, technological or engineering decision, briefly explain:
-
-1. **What** is being introduced.
-2. **Why** it is needed.
-3. **How** it works.
-4. **Which pattern or principle** is being applied.
-5. **Main trade-offs**.
-
-Keep explanations concise and concrete. Do not turn explanations into long tutorials unless explicitly requested.
-
-## Change Management
-
-- Make changes focused and minimal.
-- Do not modify unrelated code or perform opportunistic refactoring.
-- Before significant changes, inspect the relevant existing code and configuration.
-- After implementation, summarize what changed and how it was verified.
-- Do not assume unstated requirements.
-- Ask for clarification when an architectural decision materially depends on missing requirements.
-
-## Git
-
-- Use Conventional Commits.
-- Commit format:
-
-  `type(scope): description`
-
-- Prefer small, focused commits.
-- Do not mix unrelated changes in the same commit.
-- Commit messages must clearly describe the change.
-
-## File Organization
-
-- Keep project structure predictable and easy to navigate.
-- Group files by responsibility and domain.
-- Avoid unnecessary nesting.
-- Keep related configuration close together.
-- Optimize all generated files, including this document, for clarity and low token consumption.
+`app.` and `auth.onepieceapi.dev`: owner only (Cloudflare rule on the owner's IPv4 and IPv6). `api.`: public. Origin accepts HTTPS only from Cloudflare. Owner IP change = update tfvars + `terraform apply`. E-mail from `no-reply@mail.onepieceapi.dev` (Resend): never invite `@onepiece.local` addresses outside CI.
