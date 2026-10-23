@@ -24,27 +24,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# start_port_forward <service> <local:remote> <logfile>
-# kubectl port-forward a volte fallisce con "address already in use" se la
-# porta locale è appena stata rilasciata da un run precedente (TIME_WAIT):
-# un paio di retry con una breve pausa risolvono senza intervento manuale.
-start_port_forward() {
-  local service="$1" ports="$2" logfile="$3" attempt
-  for attempt in 1 2 3; do
-    kubectl port-forward "svc/$service" -n "$NAMESPACE" "$ports" >"$logfile" 2>&1 &
-    local pid=$!
-    for _ in 1 2 3 4 5 6 7 8 9 10; do
-      grep -q "Forwarding from" "$logfile" 2>/dev/null && { PF_PIDS+=("$pid"); return 0; }
-      kill -0 "$pid" 2>/dev/null || break
-      sleep 0.5
-    done
-    kill "$pid" >/dev/null 2>&1 || true
-    sleep 1
-  done
-  error "impossibile avviare 'kubectl port-forward svc/$service $ports' dopo 3 tentativi"
-  cat "$logfile" >&2
-  exit 1
-}
+# shellcheck disable=SC1091
+source "$REPO_ROOT/scripts/lib/port-forward.sh"
 
 log "avvio port-forward verso keycloak-http e oauth2-proxy..."
 start_port_forward keycloak-http 8080:8080 "$WORKDIR/pf-keycloak.log"
