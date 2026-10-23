@@ -89,6 +89,9 @@ jobs:
       - name: Verifica l'irrigidimento del realm (D3/D4)
         run: ./scripts/05-realm-hardening-test.sh
 
+      - name: Verifica il client dell'AI editor (ADR-0026)
+        run: ./scripts/06-ai-editor-client-test.sh
+
       - name: Diagnostica (solo se un passo precedente è fallito)
         if: failure()
         run: |

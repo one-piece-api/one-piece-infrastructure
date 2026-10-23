@@ -1,6 +1,6 @@
 # onepiece-infrastructure
 
-kind cluster (local), OKE on Oracle Cloud (remote), Helmfile orchestration, Keycloak realm, Terraform (OCI + Cloudflare). Setup, access and remote overview: `README.md`. Decisions: `docs/adr/` (0001–0025).
+kind cluster (local), OKE on Oracle Cloud (remote), Helmfile orchestration, Keycloak realm, Terraform (OCI + Cloudflare). Setup, access and remote overview: `README.md`. Decisions: `docs/adr/` (0001–0026).
 
 ## Commands
 

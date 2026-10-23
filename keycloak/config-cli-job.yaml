@@ -58,6 +58,11 @@ spec:
                 secretKeyRef:
                   name: one-piece-realm-secrets
                   key: USER_SERVICE_ADMIN_CLIENT_SECRET
+            - name: AI_EDITOR_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: one-piece-realm-secrets
+                  key: AI_EDITOR_CLIENT_SECRET
             - name: IMPORT_FILES_LOCATIONS
               value: /config/*.json
             - name: KEYCLOAK_AVAILABILITYCHECK_ENABLED

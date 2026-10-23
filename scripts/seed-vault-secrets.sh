@@ -34,6 +34,7 @@ generated=(
   "onepiece-keycloak-admin-password:hex 24"
   "onepiece-proxy-client-secret:hex 32"
   "onepiece-user-service-admin-client-secret:hex 32"
+  "onepiece-ai-editor-client-secret:hex 32"
   "onepiece-oauth2-proxy-cookie-secret:cookie"
 )
 

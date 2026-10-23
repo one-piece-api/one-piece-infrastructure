@@ -414,6 +414,59 @@
           }
         }
       ]
+    },
+    {
+      "clientId": "ai-editor",
+      "name": "AI editor",
+      "description": "Service-account-only: Claude writes content drafts and submits them for review as EDITOR. No 'profile' scope: preferred_username comes only from the hardcoded mapper - see ADR-0026.",
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "$(env:AI_EDITOR_CLIENT_SECRET)",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "defaultClientScopes": [
+        "email",
+        "roles"
+      ],
+      "optionalClientScopes": [],
+      "protocolMappers": [
+        {
+          "name": "sub",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-sub-mapper",
+          "config": {
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "onepiece-proxy audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "onepiece-proxy",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        },
+        {
+          "name": "username ai-editor",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "config": {
+            "claim.name": "preferred_username",
+            "claim.value": "ai-editor",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
     }
   ],
   "users": [
@@ -425,6 +478,14 @@
         "realm-management": ["manage-realm", "view-realm", "view-users", "query-users", "manage-users", "view-events",
           "manage-clients", "view-clients", "query-clients"]
       }
+    },
+    {
+      "username": "service-account-ai-editor",
+      "enabled": true,
+      "email": "ai-editor@onepieceapi.dev",
+      "emailVerified": true,
+      "serviceAccountClientId": "ai-editor",
+      "realmRoles": ["EDITOR"]
     }
   ]
 }
