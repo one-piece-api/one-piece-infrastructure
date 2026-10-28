@@ -1,17 +1,16 @@
 name: Deploy remote
 
-# Aggiorna l'ambiente "remote" (OKE su Oracle Cloud, ADR-0005) con
-# "helmfile --environment remote sync" - lo stesso comando lanciato a mano
-# in questa sessione di sviluppo, ora automatico. Innescato sia da push
-# diretti a questo repo, sia da one-piece-user-frontend/one-piece-user-service
-# dopo che pubblicano nuove immagini multi-arch su GHCR (repository_dispatch).
+# Aggiorna l'ambiente "remote" (k3s su una VM Always Free, ADR-0027) con
+# "helmfile --environment remote sync". Innescato da push diretti a questo
+# repo e dai repository applicativi dopo che pubblicano nuove immagini
+# multi-arch su GHCR (repository_dispatch).
 #
-# Deliberatamente NON esegue "terraform apply": un cambiamento al node pool
-# Ampere A1 può competere per una capacità scarsissima e non garantita (vedi
-# la sessione di sviluppo che ha introdotto questo workflow) - accettabile
-# come azione umana consapevole dopo aver letto un plan, non come step
-# automatico e silenzioso di una pipeline. Le modifiche Terraform restano
-# manuali e locali.
+# L'API di k3s (6443) non è esposta a internet: il job entra dal tunnel
+# WireGuard come peer della CI, che il firewall della VM limita alla 6443, e
+# si autentica come ServiceAccount ci-deployer (kubernetes/ci-deployer.yaml).
+#
+# Deliberatamente NON esegue "terraform apply": le modifiche Terraform restano
+# manuali e locali, dopo aver letto un plan (terraform/README.md).
 
 on:
   push:
@@ -31,40 +30,37 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  # Stessa minor di k3s (var.k3s_version in terraform/variables.tf, D9).
   KUBECTL_VERSION: v1.36.3
   HELM_VERSION: v4.2.4
   HELMFILE_VERSION: v1.7.4
   HELMFILE_ENVIRONMENT: remote
-  OCI_LB_SUBNET_ID: ${{ vars.OCI_LB_SUBNET_ID }}
-  OCI_LB_IP: ${{ vars.OCI_LB_IP }}
+  # Indirizzi nel tunnel (locals in terraform/compute.tf, D8): la VM è .1,
+  # la CI .2. L'API di k3s risponde sull'indirizzo della VM (tls-san).
+  WG_SERVER_IP: 10.99.0.1
+  WG_CI_IP: 10.99.0.2
   # Vault OCI letto da External Secrets Operator (terraform output vault_id).
   OCI_VAULT_ID: ${{ vars.OCI_VAULT_ID }}
   OCI_REGION: ${{ vars.OCI_CLI_REGION }}
+  # Bucket dei backup (terraform output object_storage_namespace).
+  OCI_OBJECT_STORAGE_NAMESPACE: ${{ vars.OCI_OBJECT_STORAGE_NAMESPACE }}
 
 jobs:
   deploy-remote:
-    # Spento finché PR5 (piano production-remote) non porta i segreti nel Vault
-    # e il deploy distruttivo viene confermato: senza, le ExternalSecret non
-    # trovano i valori e "helmfile sync" fallisce al chart "credentials".
-    # Si riattiva con la variabile di repo REMOTE_DEPLOY_ENABLED=true.
+    # Spento durante la migrazione da OKE a k3s (piano k3s-remote, K1-K6):
+    # si riattiva in K7 con la variabile di repo REMOTE_DEPLOY_ENABLED=true.
     if: ${{ vars.REMOTE_DEPLOY_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    env:
-      # Richieste dall'azione oracle-actions/run-oci-cli-command a livello
-      # di job (non di step), vedi la sua documentazione.
-      OCI_CLI_USER: ${{ secrets.OCI_CLI_USER }}
-      OCI_CLI_TENANCY: ${{ secrets.OCI_CLI_TENANCY }}
-      OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
-      OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_CLI_KEY_CONTENT }}
-      OCI_CLI_REGION: ${{ vars.OCI_CLI_REGION }}
     steps:
       - uses: actions/checkout@v7
 
-      - name: Installa kubectl/helm/helmfile (versioni pinnate)
+      - name: Installa kubectl/helm/helmfile (versioni pinnate) e WireGuard
         run: |
           mkdir -p "$HOME/.local/bin"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          # Fuori dal workspace: il kubeconfig non finisce mai tra i file del repo.
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
 
           curl -sL -o "$HOME/.local/bin/kubectl" \
             "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
@@ -77,43 +73,52 @@ jobs:
           curl -sL "https://github.com/helmfile/helmfile/releases/download/${HELMFILE_VERSION}/helmfile_${HELMFILE_VERSION#v}_linux_amd64.tar.gz" \
             | tar -xz -C "$HOME/.local/bin" helmfile
 
-      # oracle-actions/run-oci-cli-command (l'azione ufficiale Oracle) tokenizza
-      # male il comando con più flag con valore ("--file <path>" perde
-      # l'accoppiamento) - installiamo/eseguiamo oci CLI direttamente, stessa
-      # sostanza (autenticazione via le env var OCI_CLI_* a livello di job,
-      # native dell'SDK OCI - nessun ~/.oci/config da scrivere a mano),
-      # nessuna ambiguità di parsing.
-      - name: Installa OCI CLI
-        run: pip install --quiet oci-cli
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq wireguard-tools
 
-      - name: Genera il kubeconfig del cluster OKE
-        run: |
-          oci ce cluster create-kubeconfig \
-            --cluster-id "${{ vars.OCI_CLUSTER_ID }}" \
-            --file "${{ github.workspace }}/kubeconfig" \
-            --token-version 2.0.0
-
-      # Recovery una tantum (2026-09-20): il primissimo deploy di content-service
-      # è fallito perché l'immagine non esisteva ancora su GHCR, lasciando un pod
-      # bloccato in ImagePullBackOff con un backoff di retry ormai lungo (la
-      # cache del backoff vive sul pod, non su questo job) - un secondo
-      # "helmfile sync" con lo stesso pod non forza un nuovo pull entro i 120s di
-      # --wait, esattamente il motivo per cui "Riavvia i workload con tag
-      # mobile..." sotto esiste già per user-service/user-frontend/keycloak, ma
-      # gira DOPO helmfile sync e quindi non aiuta se è proprio quello step a
-      # fallire. Elimina il pod (se esiste ed è davvero bloccato) prima del
-      # sync, cosicché il ReplicaSet ne crei uno nuovo con backoff azzerato - un
-      # normale "helm upgrade" a spec invariata non lo farebbe da solo.
-      - name: Recovery mirato per un pod content-service bloccato in ImagePullBackOff
+      # Chiave privata solo nel file (0600), mai in argomenti o log. Il peer
+      # instrada solo l'indirizzo della VM nel tunnel; il keepalive tiene
+      # aperto il NAT del runner durante i sync lunghi.
+      - name: Apri il tunnel WireGuard verso la VM
         env:
-          KUBECONFIG: ${{ github.workspace }}/kubeconfig
+          WG_CI_PRIVATE_KEY: ${{ secrets.WG_CI_PRIVATE_KEY }}
+          WG_SERVER_PUBLIC_KEY: ${{ vars.WG_SERVER_PUBLIC_KEY }}
+          WG_ENDPOINT: ${{ vars.WG_ENDPOINT }}
         run: |
-          kubectl delete pod -n app -l app=one-piece-content-service \
-            --field-selector=status.phase!=Running --ignore-not-found=true || true
+          sudo install -d -m 0700 /etc/wireguard
+          sudo install -m 0600 /dev/null /etc/wireguard/wg0.conf
+          sudo tee /etc/wireguard/wg0.conf >/dev/null <<EOF
+          [Interface]
+          PrivateKey = ${WG_CI_PRIVATE_KEY}
+          Address = ${WG_CI_IP}/32
+
+          [Peer]
+          PublicKey = ${WG_SERVER_PUBLIC_KEY}
+          Endpoint = ${WG_ENDPOINT}
+          AllowedIPs = ${WG_SERVER_IP}/32
+          PersistentKeepalive = 25
+          EOF
+          sudo wg-quick up wg0
+
+      # Kubeconfig assemblato da valori separati (decisione 2 di K2): solo il
+      # token è segreto, la CA del cluster è pubblica e verifica il server.
+      - name: Genera il kubeconfig (ServiceAccount ci-deployer)
+        env:
+          K3S_CA_CERT: ${{ vars.K3S_CA_CERT }}
+          K3S_CI_TOKEN: ${{ secrets.K3S_CI_TOKEN }}
+        run: |
+          printf '%s\n' "$K3S_CA_CERT" > "$RUNNER_TEMP/k3s-ca.crt"
+          kubectl config set-cluster onepiece-remote \
+            --server="https://${WG_SERVER_IP}:6443" \
+            --certificate-authority="$RUNNER_TEMP/k3s-ca.crt" --embed-certs
+          kubectl config set-credentials ci-deployer --token="$K3S_CI_TOKEN"
+          kubectl config set-context onepiece-remote \
+            --cluster=onepiece-remote --user=ci-deployer
+          kubectl config use-context onepiece-remote
+          chmod 0600 "$KUBECONFIG"
+          kubectl get --raw /readyz
 
       - name: helmfile sync (ambiente remote)
-        env:
-          KUBECONFIG: ${{ github.workspace }}/kubeconfig
         run: helmfile --environment remote sync
 
       # user-frontend/user-service/content-service/public-api/keycloak-theme usano il tag
@@ -126,8 +131,6 @@ jobs:
       # l'immagine è già quella corrente. Keycloak gira come StatefulSet
       # (chart codecentric/keycloakx), non Deployment.
       - name: Riavvia i workload con tag mobile per forzare il pull
-        env:
-          KUBECONFIG: ${{ github.workspace }}/kubeconfig
         run: |
           kubectl rollout restart deployment/one-piece-user-frontend -n app
           kubectl rollout restart deployment/one-piece-user-service -n app
@@ -142,9 +145,11 @@ jobs:
 
       - name: Diagnostica (solo se un passo precedente è fallito)
         if: failure()
-        env:
-          KUBECONFIG: ${{ github.workspace }}/kubeconfig
         run: |
+          echo "::group::wg show"
+          sudo wg show || true
+          echo "::endgroup::"
+
           echo "::group::kubectl get pods -A"
           kubectl get pods -A -o wide || true
           echo "::endgroup::"
@@ -164,3 +169,12 @@ jobs:
           echo "::group::helm list -A"
           helm list -A || true
           echo "::endgroup::"
+
+      # Il runner è usa-e-getta, ma tunnel e credenziali non sopravvivono al
+      # job nemmeno per sbaglio.
+      - name: Chiudi il tunnel e cancella le credenziali
+        if: always()
+        run: |
+          sudo wg-quick down wg0 || true
+          sudo rm -f /etc/wireguard/wg0.conf
+          rm -f "$KUBECONFIG" "$RUNNER_TEMP/k3s-ca.crt"

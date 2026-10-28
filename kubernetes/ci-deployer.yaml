@@ -1,0 +1,48 @@
+# Identità della CI sul cluster remoto (k3s, ADR-0027): deploy-remote.yml
+# esegue "helmfile sync" come questo ServiceAccount, mai con il kubeconfig
+# admin di k3s. Serve cluster-admin: i chart installano CRD, ClusterRole e
+# namespace, e RBAC non permette di concedere permessi che non si hanno.
+#
+# Applicato una volta a mano dal proprietario, con il kubeconfig admin:
+#   kubectl apply -f kubernetes/ci-deployer.yaml
+# Non è una release di helmfile: la CI non può cancellare la propria
+# credenziale. Revoca immediata: kubectl delete secret ci-deployer-token -n kube-system
+# (un nuovo apply ne crea un altro, da copiare nel secret K3S_CI_TOKEN).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ci-deployer
+  namespace: kube-system
+  labels:
+    project: onepiece-api
+    component: ci
+---
+# Token legato al ServiceAccount, senza scadenza (lo genera Kubernetes):
+#   kubectl get secret ci-deployer-token -n kube-system -o jsonpath='{.data.token}' | base64 -d
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ci-deployer-token
+  namespace: kube-system
+  labels:
+    project: onepiece-api
+    component: ci
+  annotations:
+    kubernetes.io/service-account.name: ci-deployer
+type: kubernetes.io/service-account-token
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ci-deployer
+  labels:
+    project: onepiece-api
+    component: ci
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: ci-deployer
+    namespace: kube-system
