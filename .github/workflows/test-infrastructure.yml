@@ -128,3 +128,61 @@ jobs:
           echo "::group::docker ps -a"
           docker ps -a || true
           echo "::endgroup::"
+
+  # Controlli statici dell'ambiente "remote" (k3s, ADR-0027, D7): la CI non
+  # ha un cluster remoto, ma può verificare che manifest, Terraform e
+  # cloud-init siano validi prima di un deploy o di una ricreazione della VM.
+  # In parallelo al job kind.
+  remote-static-checks:
+    # Stessa release Ubuntu della VM: cloud-init schema è quello che leggerà
+    # il file al primo boot.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      TERRAFORM_VERSION: 1.15.8
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Installa helm/helmfile/terraform (versioni pinnate) e cloud-init
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+          curl -sL "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" \
+            | tar -xz -C /tmp
+          mv /tmp/linux-amd64/helm "$HOME/.local/bin/helm"
+
+          curl -sL "https://github.com/helmfile/helmfile/releases/download/${HELMFILE_VERSION}/helmfile_${HELMFILE_VERSION#v}_linux_amd64.tar.gz" \
+            | tar -xz -C "$HOME/.local/bin" helmfile
+
+          curl -sL -o /tmp/terraform.zip \
+            "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip"
+          unzip -q -o /tmp/terraform.zip -d "$HOME/.local/bin" terraform
+
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq cloud-init
+
+      # Valori finti: i template richiedono queste variabili (requiredEnv), il
+      # contenuto non conta per il render.
+      - name: helmfile template (ambiente remote)
+        env:
+          OCI_VAULT_ID: ocid1.vault.oc1..ci-dummy
+          OCI_REGION: eu-turin-1
+          OCI_OBJECT_STORAGE_NAMESPACE: ci-dummy
+        run: helmfile --environment remote template > /dev/null
+
+      - name: terraform fmt e validate (senza backend)
+        run: |
+          terraform fmt -check -recursive terraform
+          terraform -chdir=terraform init -backend=false -input=false
+          terraform -chdir=terraform validate
+
+      # Render con valori finti (terraform/tests/cloud-init), poi il
+      # validatore ufficiale di cloud-init (decisione 3 di K2).
+      - name: cloud-init schema
+        run: |
+          terraform -chdir=terraform/tests/cloud-init init -input=false
+          terraform -chdir=terraform/tests/cloud-init apply -auto-approve -input=false
+          terraform -chdir=terraform/tests/cloud-init output -raw user_data \
+            > "$RUNNER_TEMP/user-data.yaml"
+          cloud-init schema --config-file "$RUNNER_TEMP/user-data.yaml" --annotate

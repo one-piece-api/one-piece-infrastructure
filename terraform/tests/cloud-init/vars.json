@@ -1,0 +1,13 @@
+{
+  "k3s_version": "v1.36.5+k3s1",
+  "data_volume_device": "/dev/oracleoci/oraclevdb",
+  "data_mount_path": "/data",
+  "wireguard_port": 51820,
+  "wireguard_server_ip": "10.99.0.1",
+  "wireguard_ci_ip": "10.99.0.2",
+  "wireguard_owner_ip": "10.99.0.3",
+  "wireguard_prefix_len": 24,
+  "wireguard_ci_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+  "wireguard_owner_key": "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA=",
+  "cloudflare_ipv4": ["173.245.48.0/20", "103.21.244.0/22"]
+}
