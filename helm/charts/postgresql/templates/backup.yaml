@@ -1,0 +1,141 @@
+{{- if .Values.backup.enabled }}
+{{- /*
+Backup logico giornaliero su OCI Object Storage (ADR-0027, PR6 D5), solo in
+"remote". L'initContainer fa il dump con la stessa immagine del server; il
+container principale lo carica con rclone usando l'identità della VM
+(instance principal). La scadenza a 14 giorni è della lifecycle policy del
+bucket (terraform/backups.tf); la policy IAM consente solo di creare ed
+elencare oggetti, quindi rclone non controlla né crea il bucket e non legge
+la destinazione.
+*/ -}}
+{{- $o := .Values.backup.objectStorage }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.name }}-backup
+  namespace: {{ .Values.namespace }}
+  labels:
+    project: onepiece-api
+    component: {{ .Values.component }}
+data:
+  pg-backup.sh: |
+    {{- .Files.Get "files/pg-backup.sh" | nindent 4 }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Values.name }}-backup
+  namespace: {{ .Values.namespace }}
+  labels:
+    project: onepiece-api
+    component: {{ .Values.component }}
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  timeZone: {{ .Values.backup.timeZone }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels:
+            app: {{ .Values.name }}-backup
+            project: onepiece-api
+            component: {{ .Values.component }}
+            # Eccezione alla NetworkPolicy sui metadata (chart "namespace"):
+            # rclone ottiene da lì l'identità della VM.
+            onepiece-api/oci-metadata: allowed
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          initContainers:
+            - name: dump
+              image: {{ .Values.image }}
+              command: ["sh", "/scripts/pg-backup.sh", "/backup"]
+              args:
+                {{- range .Values.databases }}
+                - {{ .database }}
+                {{- end }}
+              env:
+                - name: PGHOST
+                  value: {{ .Values.name }}
+                - name: PGUSER
+                  value: postgres
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.admin.secretName }}
+                      key: password
+              securityContext:
+                # Utente "postgres" dell'immagine ufficiale (Debian).
+                runAsUser: 999
+                runAsGroup: 999
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+                - name: backup
+                  mountPath: /backup
+                - name: tmp
+                  mountPath: /tmp
+              resources:
+                {{- toYaml .Values.backup.resources | nindent 16 }}
+          containers:
+            - name: upload
+              image: {{ .Values.backup.uploaderImage }}
+              args:
+                - copy
+                - /backup
+                - ":oracleobjectstorage:{{ required "backup.objectStorage.bucket obbligatorio" $o.bucket }}"
+                # Il bucket esiste già (Terraform) e il nome contiene il
+                # timestamp: nessun controllo, solo creazione di oggetti.
+                - --oos-no-check-bucket
+                - --no-check-dest
+                - --config=/dev/null
+                - --cache-dir=/tmp
+                - --stats-one-line
+                - -v
+              env:
+                - name: RCLONE_OOS_PROVIDER
+                  value: instance_principal_auth
+                - name: RCLONE_OOS_NAMESPACE
+                  value: {{ required "backup.objectStorage.namespace obbligatorio" $o.namespace | quote }}
+                - name: RCLONE_OOS_REGION
+                  value: {{ required "backup.objectStorage.region obbligatorio" $o.region | quote }}
+              securityContext:
+                runAsUser: 65534
+                runAsGroup: 65534
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              volumeMounts:
+                - name: backup
+                  mountPath: /backup
+                  readOnly: true
+                - name: tmp
+                  mountPath: /tmp
+              resources:
+                {{- toYaml .Values.backup.resources | nindent 16 }}
+          volumes:
+            - name: scripts
+              configMap:
+                name: {{ .Values.name }}-backup
+            - name: backup
+              emptyDir:
+                sizeLimit: 2Gi
+            - name: tmp
+              emptyDir:
+                sizeLimit: 256Mi
+{{- end }}

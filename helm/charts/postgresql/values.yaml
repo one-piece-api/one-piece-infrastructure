@@ -37,3 +37,24 @@ resources:
   limits:
     cpu: 500m
     memory: 1Gi
+
+# Backup logico giornaliero (ADR-0027, PR6 D5): attivo solo in "remote"
+# (helmfile). Dump dei "databases" sopra + ruoli, caricato con rclone su OCI
+# Object Storage via instance principal. 03:00, prima della finestra di
+# riavvio automatico delle 04:00 (D9).
+backup:
+  enabled: false
+  schedule: "0 3 * * *"
+  timeZone: Europe/Rome
+  uploaderImage: docker.io/rclone/rclone:1.75.2
+  # terraform output -raw backup_bucket / object_storage_namespace / region.
+  objectStorage:
+    bucket: ""
+    namespace: ""
+    region: ""
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 256Mi

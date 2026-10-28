@@ -9,4 +9,4 @@ description: >
   content-service, ...), dichiarati in values.yaml e creati da un Job
   idempotente - vedi docs/adr/0016-single-shared-postgresql-instance.md.
 type: application
-version: 0.2.0
+version: 0.3.0

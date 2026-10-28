@@ -242,6 +242,14 @@ releases:
       - resources:
           requests:
             cpu: 50m
+      # Dump giornaliero su Object Storage (ADR-0027, PR6 D5).
+      - backup:
+          enabled: true
+          objectStorage:
+            # terraform output -raw backup_bucket / object_storage_namespace.
+            bucket: onepiece-backups
+            namespace: '{{ requiredEnv "OCI_OBJECT_STORAGE_NAMESPACE" }}'
+            region: '{{ requiredEnv "OCI_REGION" }}'
 {{ end }}
     # Cold-pull immagine (~170s su rete locale lenta) + readiness + Job di
     # bootstrap, vedi docs/adr/0002-helmfile-orchestration.md.
