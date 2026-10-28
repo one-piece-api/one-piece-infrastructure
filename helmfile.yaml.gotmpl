@@ -430,9 +430,10 @@ releases:
           # Il TLS termina sul Gateway: Keycloak crede agli header
           # X-Forwarded-* (schema HTTPS, IP del client) solo se arrivano
           # dalla rete dei pod, dove gira il proxy Envoy (il suo IP cambia a
-          # ogni riavvio, non si può fissare).
+          # ogni riavvio, non si può fissare): cluster-cidr di default di
+          # k3s (ADR-0027).
           - "--proxy-headers=xforwarded"
-          - "--proxy-trusted-addresses=10.244.0.0/16"
+          - "--proxy-trusted-addresses=10.42.0.0/16"
 {{ end }}
     # Cold-pull immagine ~250MB (~4min su rete locale lenta) + avvio
     # (schema DB, import realm, ~60-90s in condizioni normali, ma osservato
@@ -609,33 +610,10 @@ releases:
       - envoy-gateway-system/envoy-gateway
 {{ if eq .Environment.Name "remote" }}
     values:
-      - service:
-          annotations:
-            # Always Free: un solo Flexible Load Balancer per tenancy,
-            # banda 10 Mbps fissa (min = max) - un max diverso da 10
-            # provisiona un LB a pagamento. Vedi docs/adr/0005.
-            service.beta.kubernetes.io/oci-load-balancer-shape: "flexible"
-            service.beta.kubernetes.io/oci-load-balancer-shape-flex-min: "10"
-            service.beta.kubernetes.io/oci-load-balancer-shape-flex-max: "10"
-            # Con la topologia a subnet unica (network.tf) il
-            # cloud-controller-manager OCI non riesce a dedurla da sé
-            # ("a subnet must be specified") - va data esplicitamente.
-            # Valore: terraform output -raw subnet_id (terraform/).
-            service.beta.kubernetes.io/oci-load-balancer-subnet1: '{{ env "OCI_LB_SUBNET_ID" | default "" }}'
-            # IP pubblico riservato (network.tf): gli URL OAuth2 di
-            # oauth2-proxy/Keycloak devono puntare a un indirizzo noto in
-            # anticipo, non a quello assegnato dinamicamente alla creazione
-            # del LB. Valore: terraform output -raw lb_ip.
-            oci.oraclecloud.com/reserved-ips: '{{ env "OCI_LB_IP" | default "" }}'
-            # Senza questo, il cloud-controller-manager OCI gestisce da sé
-            # la security list della subnet e aggiunge le sue regole
-            # aperte (0.0.0.0/0) per le porte del Service - annullando la
-            # restrizione al solo CIDR autorizzato che imponiamo via
-            # Terraform (network.tf). "None" lascia la security list
-            # interamente a noi.
-            service.beta.kubernetes.io/oci-load-balancer-security-list-management-mode: "None"
-        # HTTPS con il certificato del dominio (release "certificates").
-        https:
+      # Nessuna annotazione del cloud provider: ServiceLB di k3s apre le
+      # porte del Service LoadBalancer sulla VM (ADR-0027).
+      # HTTPS con il certificato del dominio (release "certificates").
+      - https:
           enabled: true
           certificateSecretName: public-domain-tls
         # IP reale del client da Cloudflare (ADR-0020).

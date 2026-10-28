@@ -11,14 +11,14 @@ routeNamespaces:
   - auth
   - app
 
-# Service LoadBalancer del proxy. Le annotazioni specifiche OCI sono date
-# solo nell'ambiente "remote" (helmfile.yaml.gotmpl); in locale/CI il
-# Service resta <pending>, come già con ingress-nginx.
+# Service LoadBalancer del proxy: in "remote" lo espone ServiceLB di k3s
+# sulle porte della VM (ADR-0027); in locale/CI resta <pending>, come già con
+# ingress-nginx.
 service:
   annotations: {}
   # Il default di Envoy Gateway è "Local"; "Cluster" è il comportamento di
-  # ingress-nginx che sostituiamo (step I1: comportamento invariato) e
-  # quello per cui è aperta la porta di health check 10256 in network.tf.
+  # ingress-nginx che sostituiamo (step I1: comportamento invariato). L'IP
+  # reale del client arriva comunque da Cloudflare (clientIPHeader).
   externalTrafficPolicy: Cluster
 
 # Listener HTTPS (ADR-0021), solo in "remote": il Secret TLS è il
