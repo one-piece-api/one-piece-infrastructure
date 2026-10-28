@@ -1,11 +1,4 @@
-data "oci_identity_availability_domains" "ads" {
-  compartment_id = oci_identity_compartment.onepiece.id
-}
-
-data "oci_identity_fault_domains" "ads" {
-  compartment_id      = oci_identity_compartment.onepiece.id
-  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
-}
+# Availability e fault domain: data source in compute.tf (restano dopo K4).
 
 locals {
   # Fissata da var.kubernetes_version: un upgrade del control plane è una

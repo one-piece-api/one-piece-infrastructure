@@ -15,3 +15,11 @@ cloudflare_account_id = "<account-id>"
 
 # Casella a cui Cloudflare Email Routing inoltra contatti@<dominio> (ADR-0023).
 email_routing_destination = "you@example.com"
+
+# VM k3s (ADR-0027): chiavi PUBBLICHE, lette solo alla creazione della VM.
+# SSH del proprietario (raggiungibile solo dal tunnel WireGuard).
+owner_ssh_public_key = "ssh-ed25519 AAAA... you@pc"
+# WireGuard: output di "wg pubkey"; le private restano sul PC del proprietario
+# e nei secret di GitHub (CI).
+wireguard_ci_public_key    = "<44 caratteri base64>"
+wireguard_owner_public_key = "<44 caratteri base64>"

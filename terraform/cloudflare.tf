@@ -1,6 +1,6 @@
 # Dominio pubblico su Cloudflare (ADR-0020): un sottodominio per pubblico,
 # tutti proxied (CDN, protezione, IP dell'origin nascosto) verso l'IP
-# riservato del Load Balancer del Gateway.
+# riservato della VM k3s (ADR-0027).
 
 data "cloudflare_zone" "public" {
   filter = {
@@ -28,11 +28,11 @@ resource "cloudflare_dns_record" "origin" {
   zone_id = data.cloudflare_zone.public.zone_id
   name    = each.value
   type    = "A"
-  content = oci_core_public_ip.lb.ip_address
+  content = oci_core_public_ip.ingress.ip_address
   proxied = true
   # 1 = "automatico", obbligatorio per i record proxied.
   ttl     = 1
-  comment = "Origin: Load Balancer OCI del Gateway (ADR-0020)"
+  comment = "Origin: VM k3s, ServiceLB del Gateway (ADR-0020, ADR-0027)"
 }
 
 # Cloudflare -> origin cifrato con verifica del certificato (ADR-0021:

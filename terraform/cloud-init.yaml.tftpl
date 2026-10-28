@@ -1,0 +1,184 @@
+#cloud-config
+# VM del remoto (ADR-0027), resa da Terraform (compute.tf). Gira solo al primo
+# boot: le modifiche successive si applicano sulla VM (vedi README.md).
+
+timezone: Europe/Rome
+
+package_update: true
+package_upgrade: true
+packages:
+  - nftables
+  - unattended-upgrades
+  - wireguard-tools
+
+write_files:
+  # Solo aggiornamenti di sicurezza (default di Ubuntu). Reboot automatico
+  # alle 04:00 e solo se un aggiornamento lo richiede (kernel).
+  - path: /etc/apt/apt.conf.d/52onepiece-unattended-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      Unattended-Upgrade::Automatic-Reboot "true";
+      Unattended-Upgrade::Automatic-Reboot-Time "04:00";
+
+  # k3s a nodo singolo: niente Traefik (ingresso con Envoy Gateway), Secret
+  # cifrati a riposo, PersistentVolume di local-path sul volume dati, API
+  # raggiungibile anche all'indirizzo WireGuard.
+  - path: /etc/rancher/k3s/config.yaml
+    permissions: "0600"
+    content: |
+      disable:
+        - traefik
+      secrets-encryption: true
+      default-local-storage-path: ${data_mount_path}/local-path
+      tls-san:
+        - ${wireguard_server_ip}
+      write-kubeconfig-mode: "0600"
+
+  # k3s parte solo con il volume dati montato: mai PersistentVolume scritti
+  # per errore sul disco di sistema.
+  - path: /etc/systemd/system/k3s.service.d/10-data-volume.conf
+    content: |
+      [Unit]
+      RequiresMountsFor=${data_mount_path}
+
+  # Chiave privata del server generata sulla VM (onepiece-bootstrap), mai in
+  # questo file: Terraform conosce solo le chiavi pubbliche dei peer.
+  - path: /etc/wireguard/wg0.conf
+    permissions: "0600"
+    defer: true
+    content: |
+      [Interface]
+      Address = ${wireguard_server_ip}/${wireguard_prefix_len}
+      ListenPort = ${wireguard_port}
+      PostUp = wg set %i private-key /etc/wireguard/server.key
+
+      # CI (deploy-remote.yml): solo API di Kubernetes, vedi nftables.
+      [Peer]
+      PublicKey = ${wireguard_ci_key}
+      AllowedIPs = ${wireguard_ci_ip}/32
+
+      # Proprietario: SSH e API di Kubernetes.
+      [Peer]
+      PublicKey = ${wireguard_owner_key}
+      AllowedIPs = ${wireguard_owner_ip}/32
+
+  # Firewall della VM, oltre alla security list. Solo la tabella propria:
+  # k3s gestisce le sue regole, quindi niente "flush ruleset".
+  - path: /etc/nftables.conf
+    permissions: "0755"
+    defer: true
+    content: |
+      #!/usr/sbin/nft -f
+      table ip onepiece_host
+      delete table ip onepiece_host
+
+      table ip onepiece_host {
+        set cloudflare {
+          type ipv4_addr
+          flags interval
+          elements = { ${join(", ", cloudflare_ipv4)} }
+        }
+
+        # Prima del DNAT di ServiceLB e kube-proxy: da internet passano solo
+        # risposte, WireGuard e la 443 da Cloudflare. Interfacce interne
+        # (loopback, tunnel, pod), VCN, pod (cluster-cidr di default di k3s)
+        # e servizi OCI (DHCP, metadata) passano.
+        chain prerouting {
+          type filter hook prerouting priority mangle; policy drop;
+          iifname { "lo", "wg0", "cni0", "flannel.1" } accept
+          ip saddr { 10.0.0.0/16, 10.42.0.0/16, 169.254.0.0/16 } accept
+          ct state established,related accept
+          udp dport ${wireguard_port} accept
+          tcp dport 443 ip saddr @cloudflare accept
+        }
+
+        # Dal tunnel: CI solo sulla 6443, proprietario ovunque.
+        chain input {
+          type filter hook input priority filter; policy accept;
+          iifname "wg0" ip saddr ${wireguard_ci_ip} tcp dport 6443 accept
+          iifname "wg0" ip saddr ${wireguard_owner_ip} accept
+          iifname "wg0" drop
+        }
+
+        # Il tunnel arriva alla VM, non ai pod né alla VCN.
+        chain forward {
+          type filter hook forward priority filter; policy accept;
+          iifname "wg0" drop
+        }
+      }
+
+  # Volume dati (compute.tf): l'attachment arriva dopo il boot, quindi lo
+  # aspetta. Formatta solo un disco senza filesystem né partizioni.
+  - path: /usr/local/sbin/onepiece-mount-data-volume
+    permissions: "0755"
+    content: |
+      #!/bin/sh
+      set -eu
+      device="${data_volume_device}"
+      mount_path="${data_mount_path}"
+      label="onepiece-data"
+
+      attempts=0
+      while [ ! -b "$device" ]; do
+        attempts=$((attempts + 1))
+        if [ "$attempts" -gt 120 ]; then
+          echo "onepiece: $device not attached after 10 minutes" >&2
+          exit 1
+        fi
+        sleep 5
+      done
+
+      # blkid -p: 0 = filesystem o partizioni presenti, 2 = disco vuoto.
+      set +e
+      blkid -p "$device" >/dev/null 2>&1
+      status=$?
+      set -e
+      case "$status" in
+        0) ;;
+        2) mkfs.ext4 -L "$label" "$device" ;;
+        *) echo "onepiece: blkid failed on $device ($status)" >&2; exit 1 ;;
+      esac
+
+      mkdir -p "$mount_path"
+      grep -q "^LABEL=$label " /etc/fstab ||
+        echo "LABEL=$label $mount_path ext4 defaults,nofail 0 2" >>/etc/fstab
+      mountpoint -q "$mount_path" || mount "$mount_path"
+
+  # Primo avvio, in ordine; si ferma al primo errore.
+  - path: /usr/local/sbin/onepiece-bootstrap
+    permissions: "0755"
+    content: |
+      #!/bin/sh
+      set -eu
+
+      # L'immagine Ubuntu di OCI rifiuta in iptables tutto l'ingresso tranne
+      # la 22 e tutto il forward: romperebbe k3s. Il filtro è in nftables.
+      for chain in INPUT FORWARD; do
+        iptables -S "$chain" | grep -e '-j REJECT' | sed 's/^-A /-D /' |
+          xargs -r -L 1 iptables
+      done
+      if [ -f /etc/iptables/rules.v4 ]; then
+        sed -i -E '/^-A (INPUT|FORWARD) .*-j REJECT/d' /etc/iptables/rules.v4
+      fi
+      systemctl enable --now nftables
+
+      # WireGuard: chiave privata generata qui; la pubblica va sulla console
+      # seriale (oci compute console-history) per configurare i peer.
+      install -d -m 0700 /etc/wireguard
+      if [ ! -s /etc/wireguard/server.key ]; then
+        (umask 077 && wg genkey >/etc/wireguard/server.key)
+      fi
+      echo "onepiece: WireGuard server public key: $(wg pubkey </etc/wireguard/server.key)"
+      systemctl enable --now wg-quick@wg0
+
+      /usr/local/sbin/onepiece-mount-data-volume
+
+      # Installer e binario alla stessa versione fissata; l'installer
+      # verifica lo sha256 del binario.
+      curl -sfL -o /root/k3s-install.sh \
+        "https://raw.githubusercontent.com/k3s-io/k3s/${k3s_version}/install.sh"
+      INSTALL_K3S_VERSION="${k3s_version}" sh /root/k3s-install.sh
+
+runcmd:
+  - [/usr/local/sbin/onepiece-bootstrap]

@@ -1,8 +1,6 @@
-# Topologia semplificata a subnet pubblica unica (endpoint API + nodi + LB):
-# scelta adeguata a un singolo ambiente dev senza requisiti di alta
-# disponibilità (vedi ADR-0005). Per un setup più isolato/hardened, la
-# topologia standard OKE prevede subnet separate per endpoint/nodi/LB/pod
-# (vedi documentazione OCI sul networking dei cluster).
+# Subnet pubblica unica con la sola VM k3s (ADR-0027). Aperte a internet solo
+# la 443 (da Cloudflare) e WireGuard; il firewall della VM ripete gli stessi
+# limiti (cloud-init.yaml.tftpl).
 
 resource "oci_core_vcn" "onepiece" {
   compartment_id = oci_identity_compartment.onepiece.id
@@ -35,19 +33,20 @@ resource "oci_core_security_list" "onepiece" {
   vcn_id         = oci_core_vcn.onepiece.id
   display_name   = "onepiece-public-sl"
 
+  # Accesso di CI e proprietario (API di Kubernetes, SSH) solo dal tunnel.
   ingress_security_rules {
-    protocol    = "6" # TCP
+    protocol    = "17" # UDP
     source      = "0.0.0.0/0"
     source_type = "CIDR_BLOCK"
-    description = "Kubernetes API server (kubectl da qualunque rete)"
-    tcp_options {
-      min = 6443
-      max = 6443
+    description = "WireGuard (ADR-0027)"
+    udp_options {
+      min = local.wireguard_port
+      max = local.wireguard_port
     }
   }
 
   # Unico ingresso HTTP(S): la 443 solo da Cloudflare (ADR-0020), l'origin
-  # non è raggiungibile in altro modo. Con la modalità Full (strict)
+  # non è raggiungibile in altro modo. ServiceLB di k3s la apre sulla VM. Con la modalità Full (strict)
   # Cloudflare contatta l'origin solo sulla 443, quindi la 80 non gli serve.
   # Gli intervalli arrivano dal provider Cloudflare, non da un elenco a mano.
   dynamic "ingress_security_rules" {
@@ -65,37 +64,10 @@ resource "oci_core_security_list" "onepiece" {
   }
 
   ingress_security_rules {
-    protocol    = "6"
-    source      = "10.0.1.0/24"
-    source_type = "CIDR_BLOCK"
-    description = "NodePort: solo dalla Load Balancer, che vive nella stessa subnet"
-    tcp_options {
-      min = 30000
-      max = 32767
-    }
-  }
-
-  ingress_security_rules {
     protocol    = "all"
     source      = "10.0.0.0/16"
     source_type = "CIDR_BLOCK"
-    description = "Traffico interno alla VCN (control plane <-> kubelet, health check OKE)"
-  }
-
-  ingress_security_rules {
-    protocol    = "6"
-    source      = "10.0.1.0/24"
-    source_type = "CIDR_BLOCK"
-    # Porta fissa usata da kube-proxy per l'health check dei node dal Load
-    # Balancer (esternalTrafficPolicy) - OCI la aggiunge automaticamente
-    # alla security list alla creazione del primo Service LoadBalancer, ma
-    # non essendo dichiarata qui verrebbe rimossa a ogni apply successivo,
-    # rompendo l'health check.
-    description = "Health check del Load Balancer verso i node (kube-proxy, porta fissa)"
-    tcp_options {
-      min = 10256
-      max = 10256
-    }
+    description = "Traffico interno alla VCN"
   }
 
   egress_security_rules {
@@ -117,23 +89,19 @@ resource "oci_core_subnet" "public" {
   prohibit_public_ip_on_vnic = false
 }
 
-# IP pubblico riservato per il Load Balancer del Gateway (ADR-0005/0019):
-# senza dominio, oauth2-proxy/Keycloak devono usare un indirizzo noto in
-# anticipo (non solo dopo la creazione del LB) per costruire URL di
-# redirect OAuth2 raggiungibili dal browser - vedi
-# helmfile.yaml.gotmpl (annotazione oci.oraclecloud.com/reserved-ips).
-# Dentro l'allowance Always Free (fino a 2 IP pubblici riservati).
-resource "oci_core_public_ip" "lb" {
+# IP pubblico riservato dell'origin, assegnato all'IP privato della VM
+# (ADR-0027): Cloudflare punta qui (cloudflare.tf), i peer WireGuard pure. Il
+# limite Always Free di questo tenancy è 1 IP riservato: prima va liberato dal
+# vecchio Load Balancer (piano k3s-remote, K4).
+resource "oci_core_public_ip" "ingress" {
   compartment_id = oci_identity_compartment.onepiece.id
-  display_name   = "onepiece-lb-ip"
+  display_name   = "onepiece-ingress-ip"
   lifetime       = "RESERVED"
+  private_ip_id  = data.oci_core_private_ips.k3s.private_ips[0].id
+}
 
-  lifecycle {
-    # L'assegnazione alla private IP del Load Balancer è gestita da
-    # Kubernetes (annotazione oci.oraclecloud.com/reserved-ips sul Service
-    # del proxy Envoy, ADR-0019), non da qui: senza questo, un apply successivo alla
-    # prima associazione prova a scollegare l'IP dal LB, rompendo l'accesso
-    # pubblico.
-    ignore_changes = [private_ip_id]
-  }
+# Stesso indirizzo di prima (84.8.249.65): rinominato, non ricreato.
+moved {
+  from = oci_core_public_ip.lb
+  to   = oci_core_public_ip.ingress
 }

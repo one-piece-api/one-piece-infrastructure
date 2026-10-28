@@ -28,8 +28,21 @@ output "kubeconfig_path" {
   value = local_file.kubeconfig.filename
 }
 
-output "lb_ip" {
-  value = oci_core_public_ip.lb.ip_address
+output "ingress_ip" {
+  value = oci_core_public_ip.ingress.ip_address
+}
+
+output "instance_id" {
+  value = oci_core_instance.k3s.id
+}
+
+# Endpoint dei peer WireGuard (CI e proprietario).
+output "wireguard_endpoint" {
+  value = "${oci_core_public_ip.ingress.ip_address}:${local.wireguard_port}"
+}
+
+output "backup_bucket" {
+  value = oci_objectstorage_bucket.backups.name
 }
 
 output "subnet_id" {
