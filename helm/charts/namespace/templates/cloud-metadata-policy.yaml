@@ -1,0 +1,31 @@
+{{- if .Values.cloudMetadata.blocked }}
+# Nessun pod del namespace raggiunge i metadata OCI (ADR-0027, D5): da lì si
+# ottiene l'identità della VM (instance principal), che legge il Vault e
+# scrive i backup. Solo i pod con l'etichetta di eccezione (ESO, CronJob dei
+# backup) ne sono esclusi. Il resto del traffico in uscita non cambia: ogni
+# indirizzo esterno tranne i metadata, più tutti i pod del cluster (DNS,
+# servizi). Cluster solo IPv4 (kind, k3s): nessuna regola IPv6.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-cloud-metadata
+  namespace: {{ .Values.name }}
+  labels:
+    project: onepiece-api
+    component: {{ .Values.component }}
+spec:
+  podSelector:
+    matchExpressions:
+      - key: {{ .Values.cloudMetadata.exceptionLabel }}
+        operator: NotIn
+        values: ["allowed"]
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - {{ .Values.cloudMetadata.address }}
+        - namespaceSelector: {}
+{{- end }}

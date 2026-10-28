@@ -656,6 +656,11 @@ releases:
     values:
       # CRD gestite dal chart (Helm le aggiorna a ogni upgrade).
       - installCRDs: true
+        # Eccezione alla NetworkPolicy sui metadata (chart "namespace"): solo
+        # il controller usa l'instance principal; webhook e cert-controller
+        # restano bloccati.
+        podLabels:
+          onepiece-api/oci-metadata: allowed
         # Request ridotte per il budget Always Free (ADR-0005).
         resources:
           requests:

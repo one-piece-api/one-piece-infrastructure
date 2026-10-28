@@ -4,3 +4,10 @@
 # helmfile.yaml, instead of duplicating this ~8-line manifest per namespace.
 name: auth
 component: identity-provider
+
+# Egress verso i metadata OCI negato a ogni pod del namespace (ADR-0027, D5),
+# in tutti gli ambienti. Eccezione: pod con "<exceptionLabel>: allowed".
+cloudMetadata:
+  blocked: true
+  address: 169.254.169.254/32
+  exceptionLabel: onepiece-api/oci-metadata

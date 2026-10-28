@@ -1,10 +1,11 @@
 apiVersion: v2
 name: namespace
 description: >
-  Namespace di progetto con le label standard. Micro-chart locale
+  Namespace di progetto con le label standard e la NetworkPolicy che nega
+  i metadata OCI (ADR-0027). Micro-chart locale
   parametrico (name/component in values.yaml) riusato per ogni namespace
   (auth, app, ...) invece di duplicare questo manifest, sotto
   l'orchestrazione dichiarativa di Helmfile (vedi helmfile.yaml,
   docs/adr/0002-helmfile-orchestration.md).
 type: application
-version: 0.1.0
+version: 0.2.0

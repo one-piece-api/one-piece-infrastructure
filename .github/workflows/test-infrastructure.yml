@@ -92,6 +92,9 @@ jobs:
       - name: Verifica il client dell'AI editor (ADR-0026)
         run: ./scripts/06-ai-editor-client-test.sh
 
+      - name: Verifica la NetworkPolicy sui metadata del cloud (ADR-0027, D5)
+        run: ./scripts/08-cloud-metadata-policy-test.sh
+
       - name: Diagnostica (solo se un passo precedente è fallito)
         if: failure()
         run: |
