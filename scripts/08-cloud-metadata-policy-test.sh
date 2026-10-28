@@ -14,6 +14,10 @@ EXCEPTION_LABEL="onepiece-api/oci-metadata=allowed"
 METADATA_URL="http://169.254.169.254/"
 PROBE_NAMESPACE="app"
 PROBE_IMAGE="docker.io/curlimages/curl:8.17.0"
+# Il motore delle policy di kind (kube-network-policies) registra l'IP di un
+# pod nuovo dopo circa un secondo: una connessione aperta prima passa senza
+# controllo. La sonda attende prima di provare.
+POLICY_SYNC_SECONDS=5
 
 failures=0
 fail() { error "$*"; failures=$((failures + 1)); }
@@ -26,7 +30,7 @@ probe() {
   kubectl delete pod "$name" -n "$PROBE_NAMESPACE" --ignore-not-found >/dev/null
   kubectl run "$name" -n "$PROBE_NAMESPACE" --restart=Never --image="$PROBE_IMAGE" \
     ${labels:+--labels="$labels"} --command -- \
-    sh -c "curl -s -o /dev/null --connect-timeout 5 '$METADATA_URL'; echo \"exit=\$?\"" >/dev/null
+    sh -c "sleep $POLICY_SYNC_SECONDS; curl -s -o /dev/null --connect-timeout 5 '$METADATA_URL'; echo \"exit=\$?\"" >/dev/null
   kubectl wait pod "$name" -n "$PROBE_NAMESPACE" --timeout=120s \
     --for=jsonpath='{.status.phase}'=Succeeded >/dev/null || true
   kubectl logs "$name" -n "$PROBE_NAMESPACE" 2>/dev/null | sed -n 's/^exit=//p' | tail -n 1
