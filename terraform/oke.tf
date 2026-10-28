@@ -85,7 +85,7 @@ resource "oci_containerengine_node_pool" "a1" {
 
     placement_configs {
       availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
-      subnet_id            = oci_core_subnet.public.id
+      subnet_id           = oci_core_subnet.public.id
       # Fault domain esplicito (ciclato tra i retry con -var fault_domain_index=N,
       # vedi terraform/README.md) oppure non specificato (-1 = auto-assegnato
       # da Oracle) per verificare se l'auto-assegnazione trova capacità diversa

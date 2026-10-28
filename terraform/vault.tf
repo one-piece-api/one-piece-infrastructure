@@ -11,10 +11,10 @@ resource "oci_kms_vault" "onepiece" {
 }
 
 resource "oci_kms_key" "onepiece" {
-  compartment_id       = oci_identity_compartment.onepiece.id
-  display_name         = "onepiece-secrets-key"
-  management_endpoint  = oci_kms_vault.onepiece.management_endpoint
-  protection_mode      = "SOFTWARE"
+  compartment_id      = oci_identity_compartment.onepiece.id
+  display_name        = "onepiece-secrets-key"
+  management_endpoint = oci_kms_vault.onepiece.management_endpoint
+  protection_mode     = "SOFTWARE"
 
   key_shape {
     algorithm = "AES"
