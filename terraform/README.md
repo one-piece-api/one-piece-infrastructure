@@ -7,9 +7,7 @@ budget Always Free) con k3s installato da cloud-init (`compute.tf`,
 `cloud-init.yaml.tftpl`), un block volume dati da 50 GB, l'IP pubblico
 riservato, il bucket dei backup con scadenza a 14 giorni (`backups.tf`),
 l'identità della VM per ESO e backup (`iam.tf`) e un Vault OCI (chiave
-software-protected) per i secret applicativi. `oke.tf` e `import.tf`
-descrivono il cluster OKE dismesso e restano fino al cutover (piano
-k3s-remote, K4).
+software-protected) per i secret applicativi.
 
 Gestisce anche la zona Cloudflare del dominio `onepieceapi.dev`
 (`cloudflare.tf`, `email.tf`, ADR-0020/0023): record DNS proxied verso la VM, SSL Full (strict), regola che limita `app.`/`auth.` al

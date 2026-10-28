@@ -46,12 +46,6 @@ variable "email_routing_destination" {
   description = "Casella del proprietario a cui Cloudflare Email Routing inoltra contatti@<dominio> (ADR-0023). Solo in terraform.tfvars: un indirizzo personale non va in git."
 }
 
-variable "kubernetes_version" {
-  type        = string
-  default     = "v1.36.4"
-  description = "Versione Kubernetes di cluster e node pool OKE. Fissata di proposito: un upgrade del control plane è una scelta esplicita, non un effetto di terraform apply. Elenco delle versioni offerte: oci ce cluster-options get --cluster-option-id all."
-}
-
 variable "k3s_version" {
   type        = string
   default     = "v1.36.5+k3s1"
