@@ -1,21 +1,25 @@
 # Terraform — ambiente remoto Oracle Cloud
 
-Provisiona le risorse OCI per l'ambiente di sviluppo remoto always-on
-descritto in `../docs/adr/0005-remote-dev-environment-oracle-cloud.md`:
-compartment dedicato, rete (VCN/subnet/security list), cluster OKE (Basic,
-node pool ARM Ampere A1 sull'intero budget Always Free) e un Vault OCI
-(chiave software-protected) per i secret applicativi.
+Provisiona le risorse OCI dell'ambiente remoto always-on descritto in
+`../docs/adr/0027-k3s-on-always-free-vm.md`: compartment dedicato, rete
+(VCN/subnet/security list), una VM ARM Ampere A1 (2 OCPU / 12 GB, l'intero
+budget Always Free) con k3s installato da cloud-init (`compute.tf`,
+`cloud-init.yaml.tftpl`), un block volume dati da 50 GB, l'IP pubblico
+riservato, il bucket dei backup con scadenza a 14 giorni (`backups.tf`),
+l'identità della VM per ESO e backup (`iam.tf`) e un Vault OCI (chiave
+software-protected) per i secret applicativi. `oke.tf` e `import.tf`
+descrivono il cluster OKE dismesso e restano fino al cutover (piano
+k3s-remote, K4).
 
 Gestisce anche la zona Cloudflare del dominio `onepieceapi.dev`
-(`cloudflare.tf`, `email.tf`, ADR-0020/0023): record DNS proxied verso il
-Load Balancer, SSL Full (strict), regola che limita `app.`/`auth.` al
+(`cloudflare.tf`, `email.tf`, ADR-0020/0023): record DNS proxied verso la VM, SSL Full (strict), regola che limita `app.`/`auth.` al
 proprietario, record email di Resend, DMARC ed Email Routing. Gli intervalli
 IP di Cloudflare alimentano la security list: l'origin accetta HTTPS solo da
 Cloudflare.
 
 Tutte le risorse restano nell'allowance **Always Free** — vedi l'ADR per i
-limiti esatti e le scelte fatte per rispettarli (tipo di cluster, tipo di
-vault, dimensionamento del node pool).
+limiti esatti e le scelte fatte per rispettarli (forma della VM, boot volume a
+10 VPU, tipo di vault, nessuna policy di backup automatica dei volumi).
 
 ## Prerequisiti
 
@@ -31,7 +35,8 @@ vault, dimensionamento del node pool).
 - `terraform.tfvars` compilato a partire da `terraform.tfvars.example`:
   `tenancy_ocid` e `region` (stessi valori di `~/.oci/config`), token e
   account ID Cloudflare, IPv4 e prefisso IPv6 del proprietario, casella a cui
-  inoltrare `contatti@`. Il file è escluso da git.
+  inoltrare `contatti@`, chiave SSH del proprietario e chiavi pubbliche
+  WireGuard di CI e proprietario. Il file è escluso da git.
 
 ## Se cambia l'IP del proprietario
 
@@ -55,13 +60,21 @@ terraform plan
 terraform apply
 ```
 
-Il kubeconfig del cluster viene scritto in `./kubeconfig` (già in
-`.gitignore` del repo). Per usarlo:
+cloud-init gira solo al primo boot: un cambio a `cloud-init.yaml.tftpl` o a
+`k3s_version` non ricrea la VM (si applica sulla VM, o con
+`terraform apply -replace=oci_core_instance.k3s` dopo un backup). La CI
+valida il template con `cloud-init schema` (`tests/cloud-init/`).
+
+Dopo il primo boot, la chiave pubblica WireGuard del server è sulla console
+seriale (la privata non lascia mai la VM):
 
 ```bash
-export KUBECONFIG=./kubeconfig
-kubectl get nodes
+oci compute console-history capture --instance-id "$(terraform output -raw instance_id)"
+oci compute console-history get-content --instance-console-history-id <id> --length 1000000   --file - | grep 'onepiece: WireGuard server public key'
 ```
+
+Accesso con `kubectl` e SSH dal tunnel: `../README.md`, «Accesso del
+proprietario».
 
 ## Secret applicativi: non gestiti da Terraform
 
@@ -80,15 +93,16 @@ oci vault secret create-base64 \
 ```
 
 (`compartment_id`, `vault_id`, `vault_key_id` sono negli output di
-`terraform apply`.) L'External Secrets Operator nel cluster (da
-configurare lato Helmfile, vedi ADR-0005) li legge da lì per nome.
+`terraform apply`.) L'External Secrets Operator nel cluster (ADR-0025) li
+legge da lì per nome, con l'identità della VM.
 
 ## Nota sulla topologia di rete
 
-Subnet pubblica unica per endpoint API, nodi e (in futuro) Load Balancer:
-scelta adeguata a un singolo ambiente dev senza requisiti di alta
-disponibilità. Non è la topologia "hardened" a più subnet che OCI
-documenta per cluster production-grade — va rivista se questo ambiente
+Subnet pubblica unica per la VM: aperte a internet solo la 443 (intervalli
+Cloudflare) e UDP 51820 (WireGuard), con le stesse regole nel firewall della
+VM; 22 e 6443 solo dal tunnel. Scelta adeguata a un singolo nodo senza
+requisiti di alta disponibilità. Non è la topologia "hardened" a più subnet che OCI
+documenta per ambienti production-grade — va rivista se questo ambiente
 dovesse evolvere oltre il suo scopo attuale.
 
 `scripts/seed-vault-secrets.sh` crea in un colpo solo i secret usati dal

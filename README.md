@@ -163,9 +163,9 @@ rm -f $C'
 
 ## Ambiente remoto (Oracle Cloud)
 
-Ambiente di sviluppo always-on su OKE (Oracle Kubernetes Engine), piano
-Always Free (ADR-0005), raggiungibile sul dominio `onepieceapi.dev` attraverso
-Cloudflare (ADR-0020):
+Ambiente always-on su k3s a nodo singolo in una VM Always Free di Oracle Cloud
+(ADR-0027), raggiungibile sul dominio `onepieceapi.dev` attraverso Cloudflare
+(ADR-0020):
 
 | Indirizzo | Cosa | Chi lo raggiunge |
 |---|---|---|
@@ -174,20 +174,92 @@ Cloudflare (ADR-0020):
 | `https://api.onepieceapi.dev` | API pubblica (rotta dallo step P6) | tutti |
 | `https://onepieceapi.dev` | redirect verso `api.` | tutti |
 
-- **Ingresso**: Cloudflare → Load Balancer OCI (accetta HTTPS solo dagli IP
-  di Cloudflare) → Envoy Gateway (ADR-0019) → servizi. L'IP del Load
-  Balancer non risponde direttamente.
+- **Ingresso**: Cloudflare → VM (ServiceLB di k3s; la 443 accetta solo gli IP
+  di Cloudflare, nella security list e nel firewall della VM) → Envoy Gateway
+  (ADR-0019) → servizi. L'IP della VM non risponde direttamente.
 - **HTTPS**: certificato Let's Encrypt `*.onepieceapi.dev` emesso e rinnovato
   da cert-manager con verifica DNS-01 (ADR-0021).
 - **Email**: inviti e notifiche da `no-reply@mail.onepieceapi.dev` (Resend),
   `contatti@onepieceapi.dev` inoltrato al proprietario (ADR-0023).
 - **Deploy**: ogni push su `main` esegue `helmfile --environment remote sync`
-  da GitHub Actions (`deploy-remote.yml`); si può lanciare anche su un branch
-  (`gh workflow run deploy-remote.yml --ref <branch>`). Terraform (OCI e
-  Cloudflare) resta manuale e locale: vedi `terraform/README.md`, anche per
-  aggiornare l'IP del proprietario quando cambia.
-- **Console admin di Keycloak**: solo via port-forward con il kubeconfig del
-  cluster (`kubectl port-forward svc/keycloak-http -n auth 8080:8080`).
+  da GitHub Actions (`deploy-remote.yml`), attivo solo con la variabile di repo
+  `REMOTE_DEPLOY_ENABLED=true`; si può lanciare anche su un branch
+  (`gh workflow run deploy-remote.yml --ref <branch>`). Il job entra dal
+  tunnel WireGuard come ServiceAccount `ci-deployer`
+  (`kubernetes/ci-deployer.yaml`). Terraform (OCI e Cloudflare) resta manuale
+  e locale: vedi `terraform/README.md`, anche per aggiornare l'IP del
+  proprietario quando cambia.
+- **Console admin di Keycloak**: solo via port-forward dal tunnel
+  (`kubectl port-forward svc/keycloak-http -n auth 8080:8080`).
+
+### Accesso del proprietario (WireGuard)
+
+API di k3s (6443) e SSH (22) rispondono solo dentro il tunnel `10.99.0.0/24`:
+VM `.1`, CI `.2` (solo 6443), proprietario `.3`. Client WireGuard del
+proprietario:
+
+```ini
+[Interface]
+PrivateKey = <chiave privata del proprietario; la pubblica è in terraform.tfvars>
+Address = 10.99.0.3/32
+
+[Peer]
+PublicKey = <chiave pubblica del server: console seriale della VM, riga "onepiece: WireGuard server public key">
+Endpoint = <terraform output -raw wireguard_endpoint>
+AllowedIPs = 10.99.0.0/24
+PersistentKeepalive = 25
+```
+
+Con il tunnel attivo:
+
+```bash
+ssh ubuntu@10.99.0.1
+# kubeconfig admin di k3s, puntato all'indirizzo nel tunnel (resta sul PC del proprietario)
+ssh ubuntu@10.99.0.1 sudo cat /etc/rancher/k3s/k3s.yaml \
+  | sed 's/127.0.0.1/10.99.0.1/' > ~/.kube/onepiece-remote.yaml
+export KUBECONFIG=~/.kube/onepiece-remote.yaml
+kubectl get nodes
+```
+
+VM ricreata = nuova chiave del server e nuova CA: aggiornare il client, il
+kubeconfig e i valori della CI (`WG_SERVER_PUBLIC_KEY`, `K3S_CA_CERT`,
+`K3S_CI_TOKEN`).
+
+### Backup e ripristino
+
+Ogni notte alle 03:00 (Europe/Rome) il CronJob `one-piece-postgresql-backup`
+(namespace `data`) carica `pg-<UTC>.tgz` nel bucket `onepiece-backups`;
+Object Storage cancella i file dopo 14 giorni. L'archivio contiene
+`globals.sql` (ruoli) e un `<database>.dump` (`pg_dump -Fc`) per database;
+`scripts/07-backup-restore-test.sh` ne prova il ripristino in CI. Backup a
+mano prima di un'operazione rischiosa:
+
+```bash
+kubectl create job -n data --from=cronjob/one-piece-postgresql-backup backup-manual-$(date +%s)
+```
+
+Ripristino (dal tunnel, con il kubeconfig admin):
+
+```bash
+oci os object get -bn onepiece-backups --name pg-<UTC>.tgz --file pg.tgz
+mkdir restore && tar -xzf pg.tgz -C restore
+# Fermare chi scrive
+kubectl scale deployment -n app --all --replicas=0
+kubectl scale statefulset keycloak -n auth --replicas=0
+kubectl cp restore data/one-piece-postgresql-0:/tmp/restore
+kubectl exec -n data one-piece-postgresql-0 -- sh -c '
+  psql -U postgres -f /tmp/restore/globals.sql   # "already exists" atteso sui ruoli presenti
+  for db in keycloak user_service content_service; do   # proprietario = nome del database
+    dropdb -U postgres --if-exists "$db"
+    createdb -U postgres -O "$db" "$db"
+    pg_restore -U postgres --exit-on-error -d "$db" "/tmp/restore/$db.dump"
+  done
+  rm -rf /tmp/restore'
+# Riallinea password e permessi dei ruoli (Job di bootstrap), poi riavvia i servizi
+HELMFILE_ENVIRONMENT=remote helmfile --environment remote sync
+kubectl scale deployment -n app --all --replicas=1
+kubectl scale statefulset keycloak -n auth --replicas=1
+```
 
 ## Convenzioni (da definire)
 

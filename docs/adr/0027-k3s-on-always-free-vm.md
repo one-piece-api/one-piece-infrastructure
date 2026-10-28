@@ -28,7 +28,11 @@ esiste più.
   creazione.
 - **Accesso di CI e proprietario**: WireGuard gestito da noi, solo UDP 51820 aperta a
   internet. 6443 e 22 chiuse a internet; il firewall della VM limita il peer della CI
-  alla 6443. Chiave della CI nei secret di GitHub.
+  alla 6443. Chiave della CI nei secret di GitHub. La chiave privata del server
+  nasce sulla VM al primo boot e non passa mai da Terraform. La CI si autentica
+  come ServiceAccount `ci-deployer` (`cluster-admin`, token revocabile),
+  applicato a mano e non da helmfile: niente kubeconfig admin di k3s fuori dalla
+  VM.
 - **Ingresso**: ServiceLB di k3s (porta del Service `LoadBalancer` aperta sulla VM).
   L'IP riservato 84.8.249.65 passa dal Load Balancer alla VM; il DNS Cloudflare non
   cambia. La 443 resta aperta solo agli intervalli Cloudflare (ADR-0020); Envoy
@@ -36,11 +40,14 @@ esiste più.
   annotazioni OCI. Firewall anche sulla VM.
 - **Storage**: `local-path` di k3s su un block volume dedicato da 50 GB
   (`--default-local-storage-path`), separato dal sistema operativo. Backup: CronJob
-  `pg_dump` giornaliero su Object Storage, 14 giorni (D5 del piano production-remote);
-  backup del volume solo a mano, prima delle operazioni rischiose.
+  `pg_dump` giornaliero su Object Storage, 14 giorni (D5 del piano production-remote):
+  dump con l'immagine del server, caricamento con rclone via instance principal;
+  la policy IAM permette solo di creare ed elencare oggetti. Backup del volume solo a
+  mano, prima delle operazioni rischiose.
 - **Segreti**: invariati (ADR-0025): ESO con OCI Vault e instance principal. Una
   NetworkPolicy, in ogni ambiente, blocca ai pod l'indirizzo metadata
-  `169.254.169.254`, tranne ESO e il CronJob dei backup. Dynamic group rinominato
+  `169.254.169.254`, tranne i pod con l'etichetta `onepiece-api/oci-metadata: allowed`
+  (controller di ESO e CronJob dei backup). Dynamic group rinominato
   `onepiece-instances`.
 - **Migrazione**: un unico passaggio con fermo: dump finale, eliminazione di OKE e del
   Load Balancer, nuova VM, `pg_restore`, `helmfile sync`. Il volume vecchio resta fino
@@ -48,7 +55,7 @@ esiste più.
   conteggi e login del proprietario.
 - **Locale e CI invariati** (kind). La CI di questo repo aggiunge controlli statici di
   `remote`: `helmfile --environment remote template`, `terraform validate`,
-  `cloud-init schema`.
+  `cloud-init schema` (template reso con valori finti).
 
 ## Alternative considerate
 

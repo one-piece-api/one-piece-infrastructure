@@ -14,6 +14,9 @@ introdurre un meccanismo di deploy parallelo.
 
 ### Runtime: OKE (Oracle Kubernetes Engine) su node pool Ampere A1
 
+> **Superata** (2026-10-28) da ADR-0027: a fine Free Trial il tenancy non consente più
+> cluster OKE; il remoto gira su k3s in una VM Always Free.
+
 Il control plane OKE è gratuito; il node pool gira su VM Always Free
 ARM Ampere A1 (2 OCPU / 12 GB RAM totali — Oracle ha dimezzato questa
 allowance nel 2026, verificato in fase di provisioning contro la
@@ -58,6 +61,10 @@ gap prima di qualunque condivisione esterna.
 
 ### Deploy: CI push-based, nessun controller GitOps
 
+> **Superata in parte** (2026-10-28) da ADR-0027: il deploy resta push-based, ma la CI
+> entra da un tunnel WireGuard come ServiceAccount `ci-deployer`, non con un kubeconfig
+> generato via OCI CLI.
+
 Un workflow in questo repo esegue `helmfile --environment remote sync`
 autenticandosi al cluster con un kubeconfig (generato via OCI CLI, salvato
 come secret CI), innescato dopo la pubblicazione delle immagini su GHCR.
@@ -83,7 +90,8 @@ dichiarativo — ADR-0001).
 
 ## Alternative considerate
 
-- **VM singola + k3s auto-gestito**: scartata — nessun control plane
+- **VM singola + k3s auto-gestito** (scelta poi da ADR-0027, quando il control plane
+  gestito gratuito non è più disponibile): scartata — nessun control plane
   gestito gratuito, manutenzione (upgrade, resilienza) a carico dello
   sviluppatore.
 - **GitOps (ArgoCD/Flux) da subito**: scartata per ora — consumo

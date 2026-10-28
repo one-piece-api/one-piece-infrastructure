@@ -27,6 +27,8 @@ gli chiede:
   - Le annotazioni OCI del Load Balancer (shape flexible 10 Mbps, subnet, IP riservato,
     security list non gestita dal CCM) passano al Service generato tramite la risorsa
     `EnvoyProxy`.
+    **Superato (2026-10-28, ADR-0027):** su k3s il Service è esposto da ServiceLB sulla
+    VM, senza Load Balancer OCI né annotazioni.
 - **Migrazione da sola, prima di dominio e HTTPS** (step I1): stesso IP, HTTP, stessi
   percorsi di oggi (`/` → oauth2-proxy, `/realms` e `/resources` → Keycloak). Host e TLS
   arrivano negli step successivi, direttamente sul gateway nuovo.

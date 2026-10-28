@@ -35,6 +35,10 @@ e alla scadenza del free trial sarebbe stato recuperato da Oracle.
 
 Risultato su OKE: 2 boot + 1 volume = 150 GB, sotto la quota.
 
+> **Contesto superato** (2026-10-28) da ADR-0027: su k3s il PVC usa `local-path` su un
+> block volume dati da 50 GB della VM, non un block volume per PVC. L'istanza unica
+> resta: un solo backup, meno memoria.
+
 ## Alternative considerate
 
 - **Un'istanza per servizio (stato precedente)**: isolamento fisico, ma su OCI
