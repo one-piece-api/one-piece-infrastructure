@@ -26,10 +26,6 @@ data "oci_core_images" "ubuntu_a1" {
 locals {
   vm_shape = "VM.Standard.A1.Flex"
 
-  # Tutto l'allotment A1 Always Free (2 OCPU / 12 GB) su una VM.
-  vm_ocpus         = 2
-  vm_memory_in_gbs = 12
-
   # 50 GB di boot + 50 GB di dati: 100 dei 200 GB Always Free. 10 VPU per GB
   # (Balanced) è il minimo per un boot volume; livelli più alti sono a
   # pagamento.
@@ -63,8 +59,8 @@ resource "oci_core_instance" "k3s" {
   shape        = local.vm_shape
 
   shape_config {
-    ocpus         = local.vm_ocpus
-    memory_in_gbs = local.vm_memory_in_gbs
+    ocpus         = var.vm_ocpus
+    memory_in_gbs = var.vm_memory_in_gbs
   }
 
   source_details {

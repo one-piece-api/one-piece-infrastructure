@@ -14,6 +14,28 @@ variable "fault_domain_index" {
   description = "Indice (0-based) del fault domain da usare per la VM A1 (e per il node pool OKE fino alla sua rimozione), tra quelli disponibili nell'AD. Utile per aggirare 'Out of host capacity' specifico di un FD: ciclare tra 0/1/2 con -var. -1 = non specificare il fault domain (auto-assegnato da Oracle)."
 }
 
+variable "vm_ocpus" {
+  type        = number
+  default     = 2
+  description = "OCPU della VM A1. Default: tutto l'allotment Always Free (2). Valore più basso solo per aggirare 'Out of host capacity' alla creazione, poi resize al default (vedi README.md)."
+
+  validation {
+    condition     = var.vm_ocpus >= 1 && var.vm_ocpus <= 2 && floor(var.vm_ocpus) == var.vm_ocpus
+    error_message = "vm_ocpus deve essere 1 o 2 (limite A1 Always Free)."
+  }
+}
+
+variable "vm_memory_in_gbs" {
+  type        = number
+  default     = 12
+  description = "Memoria (GB) della VM A1. Default: tutto l'allotment Always Free (12). Valore più basso solo per aggirare 'Out of host capacity' alla creazione, poi resize al default."
+
+  validation {
+    condition     = var.vm_memory_in_gbs >= 1 && var.vm_memory_in_gbs <= 12
+    error_message = "vm_memory_in_gbs deve stare tra 1 e 12 (limite A1 Always Free)."
+  }
+}
+
 variable "allowed_client_cidr" {
   type        = string
   description = "CIDR del proprietario, es. \"203.0.113.4/32\": unico autorizzato a raggiungere il back-office (app./auth.) tramite la regola custom Cloudflare (ADR-0020) - console admin e utenti seed hanno password note (ambiente dev). Va aggiornata a mano se l'IP cambia."
