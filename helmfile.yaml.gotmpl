@@ -294,6 +294,8 @@ releases:
     namespace: app
     chart: ./helm/charts/user-frontend
     needs:
+      # ghcr-pull-secret: in "remote" nasce dall'ExternalSecret di "credentials".
+      - data/credentials
       - app/app-namespace
     values:
       - image: '{{ .Values.userFrontendImage | default "one-piece-user-frontend:local" }}'
