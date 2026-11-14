@@ -4,6 +4,12 @@
 
 timezone: Europe/Rome
 
+# A ogni boot (bootcmd, a differenza di runcmd): ristampa sulla console
+# seriale la chiave pubblica WireGuard del server, così resta leggibile con
+# oci compute console-history anche dopo un riavvio (D8 del piano k3s).
+bootcmd:
+  - [sh, -c, 'if command -v wg >/dev/null && [ -s /etc/wireguard/server.key ]; then echo "onepiece: WireGuard server public key: $(wg pubkey </etc/wireguard/server.key)"; fi']
+
 package_update: true
 package_upgrade: true
 packages:

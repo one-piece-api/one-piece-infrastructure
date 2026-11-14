@@ -68,7 +68,7 @@ domain (`-var fault_domain_index=1`, `2`, `-1`), poi in ultima istanza
 `-var vm_ocpus=1 -var vm_memory_in_gbs=6` e, a VM creata, `terraform apply`
 senza override per il resize a 2 OCPU / 12 GB (la VM si riavvia).
 
-Dopo il primo boot, la chiave pubblica WireGuard del server è sulla console
+A ogni boot la chiave pubblica WireGuard del server è stampata sulla console
 seriale (la privata non lascia mai la VM):
 
 ```bash

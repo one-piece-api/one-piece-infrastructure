@@ -213,9 +213,9 @@ PersistentKeepalive = 25
 Con il tunnel attivo:
 
 ```bash
-ssh ubuntu@10.99.0.1
+ssh -i ~/.ssh/onepiece_k3s ubuntu@10.99.0.1
 # kubeconfig admin di k3s, puntato all'indirizzo nel tunnel (resta sul PC del proprietario)
-ssh ubuntu@10.99.0.1 sudo cat /etc/rancher/k3s/k3s.yaml \
+ssh -i ~/.ssh/onepiece_k3s ubuntu@10.99.0.1 sudo cat /etc/rancher/k3s/k3s.yaml \
   | sed 's/127.0.0.1/10.99.0.1/' > ~/.kube/onepiece-remote.yaml
 export KUBECONFIG=~/.kube/onepiece-remote.yaml
 kubectl get nodes
